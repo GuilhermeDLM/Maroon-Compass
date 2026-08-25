@@ -1,0 +1,406 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		MC0000000000000000000108 /* MaroonCompassWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = MC0000000000000000000101 /* MaroonCompassWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		MC0000000000000000000021 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = MC0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = MC0000000000000000000011;
+			remoteInfo = MaroonCompass;
+		};
+		MC0000000000000000000109 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = MC0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = MC0000000000000000000106;
+			remoteInfo = MaroonCompassWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		MC0000000000000000000107 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (MC0000000000000000000108 /* MaroonCompassWidget.appex in Embed App Extensions */, );
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		MC0000000000000000000031 /* MaroonCompass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MaroonCompass.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		MC0000000000000000000032 /* MaroonCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaroonCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		MC0000000000000000000101 /* MaroonCompassWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MaroonCompassWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		MC0000000000000000000041 /* MaroonCompass */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MaroonCompass;
+			sourceTree = "<group>";
+		};
+		MC0000000000000000000042 /* MaroonCompassTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MaroonCompassTests;
+			sourceTree = "<group>";
+		};
+		MC0000000000000000000102 /* MaroonCompassWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MaroonCompassWidget;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		MC0000000000000000000051 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		MC0000000000000000000052 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		MC0000000000000000000103 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		MC0000000000000000000061 = {
+			isa = PBXGroup;
+			children = (
+				MC0000000000000000000041 /* MaroonCompass */,
+				MC0000000000000000000042 /* MaroonCompassTests */,
+				MC0000000000000000000102 /* MaroonCompassWidget */,
+				MC0000000000000000000062 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		MC0000000000000000000062 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				MC0000000000000000000031 /* MaroonCompass.app */,
+				MC0000000000000000000032 /* MaroonCompassTests.xctest */,
+				MC0000000000000000000101 /* MaroonCompassWidget.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		MC0000000000000000000011 /* MaroonCompass */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = MC00000000000000000000A2 /* Build configuration list for PBXNativeTarget "MaroonCompass" */;
+			buildPhases = (
+				MC0000000000000000000071 /* Sources */,
+				MC0000000000000000000051 /* Frameworks */,
+				MC0000000000000000000081 /* Resources */,
+				MC0000000000000000000107 /* Embed App Extensions */,
+			);
+			buildRules = ();
+			dependencies = (MC0000000000000000000110 /* PBXTargetDependency */);
+			fileSystemSynchronizedGroups = (MC0000000000000000000041 /* MaroonCompass */);
+			name = MaroonCompass;
+			packageProductDependencies = ();
+			productName = MaroonCompass;
+			productReference = MC0000000000000000000031 /* MaroonCompass.app */;
+			productType = "com.apple.product-type.application";
+		};
+		MC0000000000000000000106 /* MaroonCompassWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = MC0000000000000000000113 /* Build configuration list for PBXNativeTarget "MaroonCompassWidget" */;
+			buildPhases = (
+				MC0000000000000000000104 /* Sources */,
+				MC0000000000000000000103 /* Frameworks */,
+				MC0000000000000000000105 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			fileSystemSynchronizedGroups = (MC0000000000000000000102 /* MaroonCompassWidget */);
+			name = MaroonCompassWidget;
+			packageProductDependencies = ();
+			productName = MaroonCompassWidget;
+			productReference = MC0000000000000000000101 /* MaroonCompassWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		MC0000000000000000000012 /* MaroonCompassTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = MC00000000000000000000A3 /* Build configuration list for PBXNativeTarget "MaroonCompassTests" */;
+			buildPhases = (
+				MC0000000000000000000072 /* Sources */,
+				MC0000000000000000000052 /* Frameworks */,
+				MC0000000000000000000082 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (MC0000000000000000000091 /* PBXTargetDependency */);
+			fileSystemSynchronizedGroups = (MC0000000000000000000042 /* MaroonCompassTests */);
+			name = MaroonCompassTests;
+			packageProductDependencies = ();
+			productName = MaroonCompassTests;
+			productReference = MC0000000000000000000032 /* MaroonCompassTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		MC0000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					MC0000000000000000000011 = {CreatedOnToolsVersion = 26.6; };
+					MC0000000000000000000012 = {CreatedOnToolsVersion = 26.6; TestTargetID = MC0000000000000000000011; };
+					MC0000000000000000000106 = {CreatedOnToolsVersion = 26.6; };
+				};
+			};
+			buildConfigurationList = MC00000000000000000000A1 /* Build configuration list for PBXProject "MaroonCompass" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = MC0000000000000000000061;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = MC0000000000000000000062 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (MC0000000000000000000011 /* MaroonCompass */, MC0000000000000000000012 /* MaroonCompassTests */, MC0000000000000000000106 /* MaroonCompassWidget */);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		MC0000000000000000000081 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		MC0000000000000000000082 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		MC0000000000000000000105 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		MC0000000000000000000071 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		MC0000000000000000000072 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		MC0000000000000000000104 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		MC0000000000000000000091 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = MC0000000000000000000011 /* MaroonCompass */; targetProxy = MC0000000000000000000021 /* PBXContainerItemProxy */; };
+		MC0000000000000000000110 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = MC0000000000000000000106 /* MaroonCompassWidget */; targetProxy = MC0000000000000000000109 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		MC0000000000000000000B01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		MC0000000000000000000B02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		MC0000000000000000000B03 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = ASUMB3BUP7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Maroon Compass";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Maroon Compass uses your location only while open to estimate walking time and show useful places near you.";
+				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Maroon Compass adds course meetings only when you choose Add to Apple Calendar.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompass;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		MC0000000000000000000B04 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = ASUMB3BUP7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Maroon Compass";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Maroon Compass uses your location only while open to estimate walking time and show useful places near you.";
+				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Maroon Compass adds course meetings only when you choose Add to Apple Calendar.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompass;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		MC0000000000000000000B05 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = ASUMB3BUP7;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompassTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MaroonCompass.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MaroonCompass";
+			};
+			name = Debug;
+		};
+		MC0000000000000000000B06 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = ASUMB3BUP7;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompassTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MaroonCompass.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MaroonCompass";
+			};
+			name = Release;
+		};
+		MC0000000000000000000111 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = ASUMB3BUP7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_KEY_CFBundleDisplayName = "Maroon Compass";
+				INFOPLIST_FILE = Configuration/MaroonCompassWidget-Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks");
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompass.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		MC0000000000000000000112 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = ASUMB3BUP7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_KEY_CFBundleDisplayName = "Maroon Compass";
+				INFOPLIST_FILE = Configuration/MaroonCompassWidget-Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks");
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompass.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		MC00000000000000000000A1 /* Build configuration list for PBXProject "MaroonCompass" */ = {isa = XCConfigurationList; buildConfigurations = (MC0000000000000000000B01 /* Debug */, MC0000000000000000000B02 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		MC00000000000000000000A2 /* Build configuration list for PBXNativeTarget "MaroonCompass" */ = {isa = XCConfigurationList; buildConfigurations = (MC0000000000000000000B03 /* Debug */, MC0000000000000000000B04 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		MC00000000000000000000A3 /* Build configuration list for PBXNativeTarget "MaroonCompassTests" */ = {isa = XCConfigurationList; buildConfigurations = (MC0000000000000000000B05 /* Debug */, MC0000000000000000000B06 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		MC0000000000000000000113 /* Build configuration list for PBXNativeTarget "MaroonCompassWidget" */ = {isa = XCConfigurationList; buildConfigurations = (MC0000000000000000000111 /* Debug */, MC0000000000000000000112 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = MC0000000000000000000001 /* Project object */;
+}

@@ -1,0 +1,15 @@
+.DS_Store
+DerivedData/
+DerivedDataRenewal/
+DerivedData*/
+Build/
+build/
+Dist/
+tmp/
+*.xcuserstate
+*.xcresult
+*.ipa
+*.zip
+xcuserdata/
+Screenshots/*.png
+Tools/RenewalConfig.local.zsh
