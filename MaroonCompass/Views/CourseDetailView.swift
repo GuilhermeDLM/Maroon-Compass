@@ -14,6 +14,7 @@ struct CourseDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
+                courseInformationCard
                 locationCard
                 meetingsCard
                 specialMeetingsCard
@@ -66,6 +67,39 @@ struct CourseDetailView: View {
                     .foregroundStyle(AppTheme.accent)
             }
         }
+    }
+
+    private var courseInformationCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "Course information", detail: course.crn.map { "CRN \($0)" })
+            SurfaceCard {
+                VStack(spacing: 0) {
+                    ForEach(Array(courseInformation.enumerated()), id: \.offset) { index, item in
+                        LabeledContent(item.label) {
+                            Text(item.value)
+                                .multilineTextAlignment(.trailing)
+                                .foregroundStyle(.primary)
+                        }
+                        .font(.subheadline)
+                        .padding(.vertical, 9)
+                        if index < courseInformation.count - 1 { Divider() }
+                    }
+                }
+            }
+        }
+    }
+
+    private var courseInformation: [(label: String, value: String)] {
+        [
+            ("Status", course.status ?? "Not supplied"),
+            ("CRN", course.crn ?? "Not supplied"),
+            ("Subject", course.subject),
+            ("Course number", course.courseNumber.isEmpty ? "Not supplied" : course.courseNumber),
+            ("Section", course.section.isEmpty ? "Not supplied" : course.section),
+            ("Credits", "\(course.credits)"),
+            ("Instruction mode", course.instructionMode ?? "Not supplied"),
+            ("Instructor", course.instructor ?? "Not supplied")
+        ]
     }
 
     private var locationCard: some View {

@@ -28,9 +28,9 @@ struct OnboardingView: View {
                     }
 
                     HStack(spacing: 12) {
-                        StatTile(value: "6", label: "courses")
-                        StatTile(value: "13", label: "credits")
-                        StatTile(value: "3", label: "special meetings")
+                        StatTile(value: "\(store.engine.courses.count)", label: "courses")
+                        StatTile(value: "\(store.totalCredits)", label: "credits")
+                        StatTile(value: "\(store.engine.patterns.count)", label: "weekly meetings")
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
@@ -61,7 +61,21 @@ struct OnboardingView: View {
                             Text("Classrooms verified")
                                 .font(.headline)
                                 .foregroundStyle(.white)
-                            Text("Your Howdy schedule PDF supplied the confirmed building, room, and instructor for each meeting.")
+                            Text("Your Howdy registration supplied each CRN, section, instructor, building, room, and meeting time.")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.72))
+                        }
+                    }
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.title2)
+                            .foregroundStyle(AppTheme.gold)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Build your personal plan")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                            Text("Add lunch, study sessions, sleep, work, and other routines around protected class meetings.")
                                 .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.72))
                         }

@@ -26,6 +26,8 @@ enum Weekday: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
 
     var narrowName: String { String(shortName.prefix(1)) }
 
+    var sortIndex: Int { Self.allCases.firstIndex(of: self) ?? 0 }
+
     init?(calendarWeekday: Int) {
         switch calendarWeekday {
         case 1: self = .sunday
@@ -49,8 +51,42 @@ struct Course: Identifiable, Codable, Hashable, Sendable {
     let catalogSummary: String
     let colorHex: String
     let symbol: String
+    let status: String?
+    let crn: String?
+    let instructionMode: String?
+    let instructor: String?
+
+    init(
+        id: String,
+        code: String,
+        section: String,
+        title: String,
+        credits: Int,
+        catalogSummary: String,
+        colorHex: String,
+        symbol: String,
+        status: String? = nil,
+        crn: String? = nil,
+        instructionMode: String? = nil,
+        instructor: String? = nil
+    ) {
+        self.id = id
+        self.code = code
+        self.section = section
+        self.title = title
+        self.credits = credits
+        self.catalogSummary = catalogSummary
+        self.colorHex = colorHex
+        self.symbol = symbol
+        self.status = status
+        self.crn = crn
+        self.instructionMode = instructionMode
+        self.instructor = instructor
+    }
 
     var displayCode: String { "\(code)-\(section)" }
+    var subject: String { code.split(separator: " ").first.map(String.init) ?? code }
+    var courseNumber: String { code.split(separator: " ").dropFirst().first.map(String.init) ?? "" }
 }
 
 struct MeetingPattern: Identifiable, Codable, Hashable, Sendable {
@@ -392,4 +428,179 @@ struct CalendarImportReport: Identifiable, Hashable, Sendable {
     let oneTimeEventCount: Int
     let normalizedAnchorCount: Int
     let notes: [String]
+}
+
+enum PersonalBlockCategory: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+    case study
+    case meal
+    case sleep
+    case fitness
+    case work
+    case commute
+    case personal
+    case other
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+
+    var symbol: String {
+        switch self {
+        case .study: "book.closed.fill"
+        case .meal: "fork.knife"
+        case .sleep: "moon.zzz.fill"
+        case .fitness: "figure.run"
+        case .work: "briefcase.fill"
+        case .commute: "figure.walk.motion"
+        case .personal: "person.crop.circle.fill"
+        case .other: "square.grid.2x2.fill"
+        }
+    }
+
+    var colorHex: String {
+        switch self {
+        case .study: "356AE6"
+        case .meal: "D97706"
+        case .sleep: "7C3AED"
+        case .fitness: "059669"
+        case .work: "0284C7"
+        case .commute: "4F46E5"
+        case .personal: "DB2777"
+        case .other: "64748B"
+        }
+    }
+}
+
+enum PersonalBlockRecurrence: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+    case once
+    case weekly
+
+    var id: String { rawValue }
+    var title: String { self == .once ? "Once" : "Weekly" }
+}
+
+struct PersonalBlock: Identifiable, Codable, Hashable, Sendable {
+    var id: UUID
+    var title: String
+    var category: PersonalBlockCategory
+    var recurrence: PersonalBlockRecurrence
+    var weekdays: [Weekday]
+    var startDate: String
+    var endDate: String?
+    var startHour: Int
+    var startMinute: Int
+    var endHour: Int
+    var endMinute: Int
+    var location: String?
+    var notes: String?
+    var isEnabled: Bool
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        category: PersonalBlockCategory,
+        recurrence: PersonalBlockRecurrence,
+        weekdays: [Weekday],
+        startDate: String,
+        endDate: String? = nil,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        location: String? = nil,
+        notes: String? = nil,
+        isEnabled: Bool = true
+    ) {
+        self.id = id
+        self.title = title
+        self.category = category
+        self.recurrence = recurrence
+        self.weekdays = weekdays.sorted { $0.sortIndex < $1.sortIndex }
+        self.startDate = startDate
+        self.endDate = endDate
+        self.startHour = startHour
+        self.startMinute = startMinute
+        self.endHour = endHour
+        self.endMinute = endMinute
+        self.location = location
+        self.notes = notes
+        self.isEnabled = isEnabled
+    }
+
+    var crossesMidnight: Bool {
+        endHour * 60 + endMinute <= startHour * 60 + startMinute
+    }
+
+    var durationMinutes: Int {
+        let start = startHour * 60 + startMinute
+        var end = endHour * 60 + endMinute
+        if end <= start { end += 24 * 60 }
+        return end - start
+    }
+}
+
+struct PersonalBlockOccurrence: Identifiable, Hashable, Sendable {
+    let id: String
+    let block: PersonalBlock
+    let start: Date
+    let end: Date
+    let visibleStart: Date
+    let visibleEnd: Date
+    let continuesFromPreviousDay: Bool
+    let continuesIntoNextDay: Bool
+}
+
+enum DailyAgendaItem: Identifiable, Hashable, Sendable {
+    case classMeeting(ScheduleOccurrence)
+    case personal(PersonalBlockOccurrence)
+
+    var id: String {
+        switch self {
+        case .classMeeting(let occurrence): "class-\(occurrence.id)"
+        case .personal(let occurrence): "personal-\(occurrence.id)"
+        }
+    }
+
+    var start: Date {
+        switch self {
+        case .classMeeting(let occurrence): occurrence.start
+        case .personal(let occurrence): occurrence.visibleStart
+        }
+    }
+
+    var end: Date {
+        switch self {
+        case .classMeeting(let occurrence): occurrence.end
+        case .personal(let occurrence): occurrence.visibleEnd
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .classMeeting(let occurrence): occurrence.course.code
+        case .personal(let occurrence): occurrence.block.title
+        }
+    }
+
+    var personalBlockID: UUID? {
+        guard case .personal(let occurrence) = self else { return nil }
+        return occurrence.block.id
+    }
+}
+
+struct PersonalPlanConflict: Identifiable, Hashable, Sendable {
+    let id: String
+    let firstTitle: String
+    let secondTitle: String
+    let start: Date
+    let end: Date
+    let personalBlockIDs: Set<UUID>
+
+    var duration: TimeInterval { end.timeIntervalSince(start) }
+}
+
+struct PlanTimeWindow: Identifiable, Hashable, Sendable {
+    let start: Date
+    let end: Date
+    var id: String { "\(start.timeIntervalSince1970)-\(end.timeIntervalSince1970)" }
+    var duration: TimeInterval { end.timeIntervalSince(start) }
 }

@@ -12,28 +12,81 @@ final class ScheduleEngineTests: XCTestCase {
 
     func testSeedCountsAndCredits() {
         XCTAssertEqual(engine.courses.count, 6)
-        XCTAssertEqual(engine.patterns.count, 9)
-        XCTAssertEqual(engine.oneTimeEvents.count, 3)
-        XCTAssertEqual(engine.courses.reduce(0) { $0 + $1.credits }, 13)
+        XCTAssertEqual(engine.patterns.count, 8)
+        XCTAssertEqual(engine.oneTimeEvents.count, 0)
+        XCTAssertEqual(engine.courses.reduce(0) { $0 + $1.credits }, 12)
     }
 
-    func testEmbeddedScheduleIncludesVerifiedPDFDetails() throws {
+    func testEmbeddedScheduleIncludesCompleteHowdyDetails() throws {
         let chem = try XCTUnwrap(engine.patterns.first { $0.courseID == "CHEM-107-504" })
         XCTAssertEqual(chem.sourceLocationText, "ILCB · 113")
-        XCTAssertEqual(chem.sourceNotes, "Instructor: Sungyub Han")
+        XCTAssertEqual(chem.sourceNotes, "Instructor: Han, Sungyub")
 
-        let mathLocations = Set(engine.patterns
-            .filter { $0.courseID == "MATH-151-531" }
-            .compactMap(\.sourceLocationText))
-        XCTAssertEqual(mathLocations, ["HELD · 100", "BLOC · 123"])
-        XCTAssertTrue(engine.oneTimeEvents.allSatisfy { $0.sourceLocationText == "HECC · 203" })
+        let courses = Dictionary(uniqueKeysWithValues: engine.courses.map { ($0.id, $0) })
+        XCTAssertEqual(courses["CHEM-107-504"]?.crn, "10535")
+        XCTAssertEqual(courses["CHEM-117-541"]?.crn, "20335")
+        XCTAssertEqual(courses["ENGR-102-505"]?.crn, "36091")
+        XCTAssertEqual(courses["FYEX-101-563"]?.crn, "43150")
+        XCTAssertEqual(courses["MATH-251-502"]?.crn, "11953")
+        XCTAssertEqual(courses["POLS-207-510"]?.crn, "45754")
+        XCTAssertTrue(engine.courses.allSatisfy {
+            $0.status == "Enrolled" &&
+            $0.instructionMode == "Traditional Face-to-Face (F2F)" &&
+            !($0.instructor ?? "").isEmpty &&
+            !$0.subject.isEmpty &&
+            !$0.courseNumber.isEmpty
+        })
+
+        let math = try XCTUnwrap(engine.patterns.first { $0.courseID == "MATH-251-502" })
+        XCTAssertEqual(math.weekdays, [.tuesday, .thursday])
+        XCTAssertEqual(math.sourceLocationText, "BLOC · 169")
+        XCTAssertEqual(courses["MATH-251-502"]?.instructor, "Yang, Yuxuan")
+    }
+
+    func testEverySuppliedMeetingMatchesHowdyRegistration() {
+        let actual = Set(engine.patterns.map {
+            "\($0.courseID)|\($0.weekdays.map(\.rawValue).joined(separator: ","))|\($0.startHour):\($0.startMinute)|\($0.endHour):\($0.endMinute)|\($0.sourceLocationText ?? "")"
+        })
+        let expected: Set<String> = [
+            "CHEM-107-504|TU,TH|8:0|9:15|ILCB · 113",
+            "CHEM-117-541|TU|11:10|14:0|ILSQ · E311",
+            "ENGR-102-505|MO|17:10|18:0|ZACH · 353",
+            "ENGR-102-505|MO|18:1|19:0|ZACH · 353",
+            "ENGR-102-505|WE|17:10|19:0|ZACH · 353",
+            "FYEX-101-563|WE|15:0|15:50|HECC · 202",
+            "MATH-251-502|TU,TH|17:30|18:45|BLOC · 169",
+            "POLS-207-510|TU,TH|14:20|15:35|BLOC · 102"
+        ]
+        XCTAssertEqual(actual, expected)
+
+        let instructors = Dictionary(uniqueKeysWithValues: engine.courses.compactMap { course in
+            course.instructor.map { (course.id, $0) }
+        })
+        XCTAssertEqual(instructors, [
+            "CHEM-107-504": "Han, Sungyub",
+            "CHEM-117-541": "Martinez, Zachary Michael",
+            "ENGR-102-505": "Spears, Craig Michael",
+            "FYEX-101-563": "Soles, Chandris Christina",
+            "MATH-251-502": "Yang, Yuxuan",
+            "POLS-207-510": "Lim, Phaik"
+        ])
+    }
+
+    func testLegacyImportedCourseWithoutNewMetadataStillDecodes() throws {
+        let data = Data(#"{"id":"TEST-100-001","code":"TEST 100","section":"001","title":"Legacy course","credits":1,"catalogSummary":"Legacy import","colorHex":"2B67B2","symbol":"book.closed.fill"}"#.utf8)
+        let course = try JSONDecoder().decode(Course.self, from: data)
+        XCTAssertEqual(course.displayCode, "TEST 100-001")
+        XCTAssertNil(course.status)
+        XCTAssertNil(course.crn)
+        XCTAssertNil(course.instructionMode)
+        XCTAssertNil(course.instructor)
     }
 
     func testChemDoesNotAppearOnSemesterAnchorMonday() throws {
         let monday = try XCTUnwrap(engine.date("2026-08-24"))
         let codes = engine.occurrences(on: monday).map(\.course.code)
         XCTAssertFalse(codes.contains("CHEM 107"))
-        XCTAssertEqual(codes, ["POLS 207", "MATH 151", "FYEX 101", "ENGR 102", "ENGR 102"])
+        XCTAssertEqual(codes, ["ENGR 102", "ENGR 102"])
     }
 
     func testChemAppearsTuesdayAndThursday() throws {
@@ -51,10 +104,7 @@ final class ScheduleEngineTests: XCTestCase {
 
     func testRedefinedDayUsesFridayPattern() throws {
         let redefined = try XCTUnwrap(engine.date("2026-12-01"))
-        let meetings = engine.occurrences(on: redefined)
-        XCTAssertEqual(meetings.map(\.course.code), ["POLS 207"])
-        XCTAssertEqual(engine.calendar.component(.hour, from: try XCTUnwrap(meetings.first?.start)), 9)
-        XCTAssertEqual(engine.calendar.component(.minute, from: try XCTUnwrap(meetings.first?.start)), 10)
+        XCTAssertTrue(engine.occurrences(on: redefined).isEmpty)
     }
 
     func testNoRecurringClassesAfterLastClassDay() throws {
@@ -62,15 +112,10 @@ final class ScheduleEngineTests: XCTestCase {
         XCTAssertTrue(engine.occurrences(on: try XCTUnwrap(engine.date("2026-12-10"))).isEmpty)
     }
 
-    func testSpecialMeetingsAreOneTimeOnly() throws {
-        let expectedDates = ["2026-09-17", "2026-10-22", "2026-11-19"]
-        for day in expectedDates {
-            let meetings = engine.occurrences(on: try XCTUnwrap(engine.date(day))).filter(\.isSpecial)
-            XCTAssertEqual(meetings.count, 1, day)
-            XCTAssertEqual(meetings.first?.title, "MATH 151 exam")
-            XCTAssertEqual(meetings.first?.sourceMeetingID, engine.oneTimeEvents.first(where: { $0.date == day })?.id)
-        }
-        XCTAssertTrue(engine.occurrences(on: try XCTUnwrap(engine.date("2026-09-24"))).filter(\.isSpecial).isEmpty)
+    func testUpdatedScheduleHasNoUnsuppliedSpecialMeetings() throws {
+        XCTAssertTrue(engine.oneTimeEvents.isEmpty)
+        XCTAssertFalse(engine.courses.contains { $0.code == "MATH 151" })
+        XCTAssertTrue(engine.occurrences(on: try XCTUnwrap(engine.date("2026-09-17"))).allSatisfy { !$0.isSpecial })
     }
 
     func testCampusCivilTimeSurvivesDSTTransition() throws {
@@ -92,7 +137,7 @@ final class ScheduleEngineTests: XCTestCase {
     func testNextOccurrenceBeforeTermStart() throws {
         let now = try XCTUnwrap(engine.date("2026-08-18", hour: 12))
         let next = try XCTUnwrap(engine.nextOccurrence(after: now))
-        XCTAssertEqual(next.course.code, "POLS 207")
+        XCTAssertEqual(next.course.code, "ENGR 102")
         XCTAssertEqual(engine.dateString(for: next.start), "2026-08-24")
     }
 
@@ -184,5 +229,113 @@ final class ScheduleEngineTests: XCTestCase {
         XCTAssertEqual(event.date, "2026-09-17")
         XCTAssertEqual(event.startHour, 19)
         XCTAssertEqual(event.startMinute, 30)
+    }
+
+    func testWeeklyPersonalBlockUsesSelectedDaysAndDateRange() throws {
+        let plan = PersonalPlanEngine(calendar: engine.calendar)
+        let lunch = PersonalBlock(
+            title: "Lunch",
+            category: .meal,
+            recurrence: .weekly,
+            weekdays: [.tuesday, .thursday],
+            startDate: "2026-08-24",
+            endDate: "2026-09-04",
+            startHour: 12,
+            startMinute: 0,
+            endHour: 13,
+            endMinute: 0
+        )
+
+        XCTAssertTrue(plan.occurrences(on: try XCTUnwrap(engine.date("2026-08-24")), blocks: [lunch]).isEmpty)
+        XCTAssertEqual(plan.occurrences(on: try XCTUnwrap(engine.date("2026-08-25")), blocks: [lunch]).count, 1)
+        XCTAssertTrue(plan.occurrences(on: try XCTUnwrap(engine.date("2026-09-08")), blocks: [lunch]).isEmpty)
+    }
+
+    func testOneTimePersonalBlockDoesNotRepeat() throws {
+        let plan = PersonalPlanEngine(calendar: engine.calendar)
+        let appointment = PersonalBlock(
+            title: "Advisor meeting",
+            category: .personal,
+            recurrence: .once,
+            weekdays: [],
+            startDate: "2026-09-02",
+            startHour: 13,
+            startMinute: 30,
+            endHour: 14,
+            endMinute: 15
+        )
+
+        XCTAssertEqual(plan.occurrences(on: try XCTUnwrap(engine.date("2026-09-02")), blocks: [appointment]).count, 1)
+        XCTAssertTrue(plan.occurrences(on: try XCTUnwrap(engine.date("2026-09-09")), blocks: [appointment]).isEmpty)
+    }
+
+    func testOvernightSleepAppearsOnBothSidesOfMidnight() throws {
+        let plan = PersonalPlanEngine(calendar: engine.calendar)
+        let sleep = PersonalBlock(
+            title: "Sleep",
+            category: .sleep,
+            recurrence: .weekly,
+            weekdays: [.monday, .tuesday],
+            startDate: "2026-08-24",
+            endDate: "2026-08-25",
+            startHour: 23,
+            startMinute: 0,
+            endHour: 7,
+            endMinute: 0
+        )
+
+        let tuesday = try XCTUnwrap(engine.date("2026-08-25"))
+        let occurrences = plan.occurrences(on: tuesday, blocks: [sleep])
+        XCTAssertEqual(occurrences.count, 2)
+        XCTAssertTrue(occurrences.contains(where: \.continuesFromPreviousDay))
+        XCTAssertTrue(occurrences.contains(where: \.continuesIntoNextDay))
+        XCTAssertEqual(sleep.durationMinutes, 8 * 60)
+    }
+
+    func testPersonalPlanReportsClassAndPersonalConflicts() throws {
+        let plan = PersonalPlanEngine(calendar: engine.calendar)
+        let monday = try XCTUnwrap(engine.date("2026-08-24"))
+        let study = PersonalBlock(
+            title: "Study ENGR 102",
+            category: .study,
+            recurrence: .once,
+            weekdays: [],
+            startDate: "2026-08-24",
+            startHour: 17,
+            startMinute: 30,
+            endHour: 18,
+            endMinute: 30
+        )
+
+        let conflicts = plan.conflicts(
+            on: monday,
+            classOccurrences: engine.occurrences(on: monday),
+            blocks: [study]
+        )
+        XCTAssertTrue(conflicts.contains { conflict in
+            Set([conflict.firstTitle, conflict.secondTitle]) == Set(["Study ENGR 102", "ENGR 102"])
+        })
+    }
+
+    @MainActor
+    func testPersonalBlockPersistsAndDeletesLocally() {
+        let store = AppStore()
+        let block = PersonalBlock(
+            title: "Persistence test \(UUID().uuidString)",
+            category: .other,
+            recurrence: .once,
+            weekdays: [],
+            startDate: "2026-09-12",
+            startHour: 10,
+            startMinute: 0,
+            endHour: 11,
+            endMinute: 0
+        )
+
+        store.savePersonalBlock(block)
+        XCTAssertTrue(AppStore().personalBlocks.contains(where: { $0.id == block.id }))
+
+        store.deletePersonalBlock(block)
+        XCTAssertFalse(AppStore().personalBlocks.contains(where: { $0.id == block.id }))
     }
 }

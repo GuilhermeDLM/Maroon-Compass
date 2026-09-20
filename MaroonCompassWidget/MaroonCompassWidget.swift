@@ -216,25 +216,20 @@ private enum WidgetSchedule {
         Pattern(code: "ENGR 102", title: "Engineering Lab I – Computation", weekdays: [2], startHour: 17, startMinute: 10, endHour: 18, endMinute: 0),
         Pattern(code: "ENGR 102", title: "Engineering Lab I – Computation", weekdays: [4], startHour: 17, startMinute: 10, endHour: 19, endMinute: 0),
         Pattern(code: "ENGR 102", title: "Engineering Lab I – Computation", weekdays: [2], startHour: 18, startMinute: 1, endHour: 19, endMinute: 0),
-        Pattern(code: "FYEX 101", title: "First Year Experience", weekdays: [2], startHour: 15, startMinute: 0, endHour: 15, endMinute: 50),
-        Pattern(code: "MATH 151", title: "Engineering Mathematics I", weekdays: [3, 5], startHour: 15, startMinute: 55, endHour: 17, endMinute: 10),
-        Pattern(code: "MATH 151", title: "Engineering Mathematics I", weekdays: [2, 4], startHour: 11, startMinute: 30, endHour: 12, endMinute: 20),
-        Pattern(code: "POLS 207", title: "State and Local Government", weekdays: [2, 4, 6], startHour: 9, startMinute: 10, endHour: 10, endMinute: 0)
+        Pattern(code: "FYEX 101", title: "First Year Experience", weekdays: [4], startHour: 15, startMinute: 0, endHour: 15, endMinute: 50),
+        Pattern(code: "MATH 251", title: "Engineering Mathematics III", weekdays: [3, 5], startHour: 17, startMinute: 30, endHour: 18, endMinute: 45),
+        Pattern(code: "POLS 207", title: "State and Local Government", weekdays: [3, 5], startHour: 14, startMinute: 20, endHour: 15, endMinute: 35)
     ]
 
-    private static let specials: [Special] = [
-        Special(code: "MATH 151", title: "Special MATH 151 meeting", date: "2026-09-17", startHour: 17, startMinute: 30, endHour: 18, endMinute: 45),
-        Special(code: "MATH 151", title: "Special MATH 151 meeting", date: "2026-10-22", startHour: 17, startMinute: 30, endHour: 18, endMinute: 45),
-        Special(code: "MATH 151", title: "Special MATH 151 meeting", date: "2026-11-19", startHour: 17, startMinute: 30, endHour: 18, endMinute: 45)
-    ]
+    private static let specials: [Special] = []
 
     private static let noClassDates: Set<String> = [
         "2026-09-07", "2026-11-25", "2026-11-26", "2026-11-27", "2026-12-04"
     ]
 
     static var placeholder: WidgetOccurrence {
-        let start = date("2026-08-24", hour: 9, minute: 10) ?? Date()
-        return WidgetOccurrence(code: "POLS 207", title: "State and Local Government", start: start, end: start.addingTimeInterval(50 * 60))
+        let start = date("2026-08-25", hour: 8, minute: 0) ?? Date()
+        return WidgetOccurrence(code: "CHEM 107", title: "General Chemistry for Engineering Students", start: start, end: start.addingTimeInterval(75 * 60))
     }
 
     static func next(after now: Date) -> WidgetOccurrence? {

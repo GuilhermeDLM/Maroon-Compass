@@ -172,32 +172,46 @@ struct TodayView: View {
 
     @ViewBuilder
     private func todayTimeline(at date: Date) -> some View {
-        let occurrences = store.engine.occurrences(on: date)
+        let agenda = store.dailyAgenda(on: date)
+        let classCount = store.engine.occurrences(on: date).count
+        let personalCount = store.personalOccurrences(on: date).count
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Today’s timeline", detail: occurrences.isEmpty ? nil : "\(occurrences.count) meetings")
+            SectionHeader(
+                title: "Today’s timeline",
+                detail: agenda.isEmpty ? nil : "\(classCount) class\(classCount == 1 ? "" : "es") · \(personalCount) personal"
+            )
             SurfaceCard {
-                if occurrences.isEmpty {
+                if agenda.isEmpty {
                     EmptyStateView(
                         symbol: "calendar.badge.checkmark",
-                        title: "No classes today",
+                        title: "Nothing scheduled today",
                         message: noClassMessage(on: date),
-                        actionTitle: "View schedule",
-                        action: { store.selectedTab = .schedule }
+                        actionTitle: "Plan this day",
+                        action: { store.selectedDate = date; store.selectedTab = .plan }
                     )
                 } else {
                     VStack(spacing: 16) {
-                        ForEach(Array(occurrences.enumerated()), id: \.element.id) { index, occurrence in
-                            Button {
-                                selectedCourse = occurrence.course
-                            } label: {
-                                OccurrenceRow(
-                                    occurrence: occurrence,
-                                    location: store.location(for: occurrence),
-                                    sourceLocationText: store.sourceLocationText(for: occurrence)
-                                )
+                        ForEach(Array(agenda.enumerated()), id: \.element.id) { index, item in
+                            switch item {
+                            case .classMeeting(let occurrence):
+                                Button { selectedCourse = occurrence.course } label: {
+                                    OccurrenceRow(
+                                        occurrence: occurrence,
+                                        location: store.location(for: occurrence),
+                                        sourceLocationText: store.sourceLocationText(for: occurrence)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            case .personal(let occurrence):
+                                Button {
+                                    store.selectedDate = date
+                                    store.selectedTab = .plan
+                                } label: {
+                                    PersonalBlockRow(occurrence: occurrence, showsDisclosure: true)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
-                            if index < occurrences.count - 1 { Divider().padding(.leading, 90) }
+                            if index < agenda.count - 1 { Divider().padding(.leading, 90) }
                         }
                     }
                 }
@@ -206,7 +220,7 @@ struct TodayView: View {
     }
 
     private func smartGapCard(at date: Date) -> some View {
-        let meaningfulGaps = store.engine.freeGaps(on: date).filter { $0.end > date }
+        let meaningfulGaps = store.openPlanWindows(on: date).filter { $0.end > date }
         let missingLocations = store.engine.courses.filter { !store.hasLocation(for: $0) }.count
         return VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "Plan the gap")
@@ -220,7 +234,7 @@ struct TodayView: View {
                         if let gap = meaningfulGaps.first {
                             Text("\(CampusFormatters.duration(gap.duration)) available")
                                 .font(.headline)
-                            Text("From \(CampusFormatters.time.string(from: gap.start)) to \(CampusFormatters.time.string(from: gap.end)). Use the verified class buildings to compare safe food and study options with walking time.")
+                            Text("From \(CampusFormatters.time.string(from: gap.start)) to \(CampusFormatters.time.string(from: gap.end)), after classes and personal blocks. Add study time, a meal, or another routine from Personal Plan.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         } else {
@@ -236,6 +250,12 @@ struct TodayView: View {
                                 .foregroundStyle(.orange)
                                 .padding(.top, 3)
                         }
+                        Button("Open Personal Plan", systemImage: "calendar.badge.plus") {
+                            store.selectedDate = date
+                            store.selectedTab = .plan
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.top, 4)
                     }
                 }
             }
@@ -245,9 +265,10 @@ struct TodayView: View {
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "Quick actions")
-            HStack(spacing: 12) {
-                quickAction(title: "Campus map", symbol: "map.fill", color: .blue) { store.selectedTab = .map }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 quickAction(title: "Full schedule", symbol: "calendar", color: AppTheme.accent) { store.selectedTab = .schedule }
+                quickAction(title: "Personal plan", symbol: "calendar.badge.plus", color: .indigo) { store.selectedTab = .plan }
+                quickAction(title: "Campus map", symbol: "map.fill", color: .blue) { store.selectedTab = .map }
             }
         }
     }

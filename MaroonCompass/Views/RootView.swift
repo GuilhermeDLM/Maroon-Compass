@@ -14,6 +14,9 @@ struct RootView: View {
             Tab("Schedule", systemImage: "calendar", value: AppTab.schedule) {
                 NavigationStack { ScheduleView() }
             }
+            Tab("Plan", systemImage: "calendar.badge.plus", value: AppTab.plan) {
+                NavigationStack { PersonalPlanView() }
+            }
             Tab("Map", systemImage: "map.fill", value: AppTab.map) {
                 MapExploreView()
             }
@@ -39,6 +42,7 @@ struct RootView: View {
         .onOpenURL { url in
             switch url.host {
             case "schedule": store.selectedTab = .schedule
+            case "plan": store.selectedTab = .plan
             case "map": store.selectedTab = .map
             default: store.selectedTab = .today
             }

@@ -19,7 +19,7 @@ struct SettingsView: View {
                 LabeledContent("Courses", value: "\(store.engine.courses.count)")
                 LabeledContent("Credits", value: "\(store.totalCredits)")
                 LabeledContent("Source", value: store.scheduleSourceName)
-                Label("Buildings, rooms, and instructors verified from the Howdy schedule PDF", systemImage: "checkmark.seal.fill")
+                Label("CRNs, sections, instructors, buildings, rooms, and meeting times verified from Howdy registration", systemImage: "checkmark.seal.fill")
                     .font(.caption).foregroundStyle(.secondary)
                 Button("Import updated Fall 2026 .ics", systemImage: "square.and.arrow.down") {
                     isImporterPresented = true
@@ -29,6 +29,13 @@ struct SettingsView: View {
                         isRestoreConfirmationPresented = true
                     }
                 }
+            }
+
+            Section("Personal Plan") {
+                LabeledContent("Personal blocks", value: "\(store.personalBlocks.count)")
+                Label("Weekly routines and one-time blocks are stored separately from protected class meetings", systemImage: "calendar.badge.plus")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Reminders") {
@@ -105,7 +112,7 @@ struct SettingsView: View {
             }
 
             Section("Privacy") {
-                Label("Schedule, locations, and favorites stay on this device", systemImage: "lock.shield.fill")
+                Label("Schedule, personal plan, locations, and favorites stay on this device", systemImage: "lock.shield.fill")
                 Label("No analytics, ads, accounts, or NetID credentials", systemImage: "hand.raised.fill")
                 Label("Commercial places come from Apple Maps", systemImage: "map.fill")
             }

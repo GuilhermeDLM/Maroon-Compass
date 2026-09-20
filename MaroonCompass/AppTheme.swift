@@ -31,6 +31,10 @@ extension Course {
     var tint: Color { Color(hex: colorHex) }
 }
 
+extension PersonalBlockCategory {
+    var tint: Color { Color(hex: colorHex) }
+}
+
 enum CampusFormatters {
     static let dayHeading: DateFormatter = {
         let formatter = DateFormatter()

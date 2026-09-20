@@ -5,6 +5,7 @@ import Observation
 enum AppTab: Hashable {
     case today
     case schedule
+    case plan
     case map
     case saved
     case settings
@@ -32,6 +33,7 @@ final class AppStore {
     var favoriteFeatures: [CampusFeature] = []
     var favoritePlaces: [PlaceResult] = []
     var recentPlaceSearches: [String] = []
+    var personalBlocks: [PersonalBlock] = []
     var requestedMapSearch: String?
     var isLoadingCampus = false
     var isSearchingPlaces = false
@@ -55,6 +57,7 @@ final class AppStore {
     private let calendarExportService = CalendarExportService()
     private let importService = ICSImportService()
     private let defaults = UserDefaults.standard
+    private static let embeddedScheduleRevisionKey = "embeddedScheduleRevision"
 
     init() {
         hasCompletedOnboarding = defaults.bool(forKey: "hasCompletedOnboarding")
@@ -66,6 +69,15 @@ final class AppStore {
         favoriteFeatures = Self.decode([CampusFeature].self, from: defaults.data(forKey: "favoriteFeatures")) ?? []
         favoritePlaces = Self.decode([PlaceResult].self, from: defaults.data(forKey: "favoritePlaces")) ?? []
         recentPlaceSearches = defaults.stringArray(forKey: "recentPlaceSearches") ?? []
+        personalBlocks = Self.decode([PersonalBlock].self, from: defaults.data(forKey: "personalBlocks")) ?? []
+
+        if defaults.string(forKey: Self.embeddedScheduleRevisionKey) != ScheduleSeed.revision {
+            defaults.removeObject(forKey: "importedSchedule")
+            let currentCourseIDs = Set(ScheduleSeed.courses.map(\.id))
+            courseLocations = courseLocations.filter { currentCourseIDs.contains($0.key) }
+            defaults.set(try? JSONEncoder().encode(courseLocations), forKey: "courseLocations")
+            defaults.set(ScheduleSeed.revision, forKey: Self.embeddedScheduleRevisionKey)
+        }
 
         if let bundle = Self.decode(ImportedScheduleBundle.self, from: defaults.data(forKey: "importedSchedule")) {
             engine = ScheduleEngine(
@@ -81,6 +93,7 @@ final class AppStore {
         if let value = Self.argument(named: "-UITab", in: arguments) {
             selectedTab = switch value.localizedLowercase {
             case "schedule": .schedule
+            case "plan": .plan
             case "map": .map
             case "saved": .saved
             case "settings": .settings
@@ -90,13 +103,18 @@ final class AppStore {
         if let value = Self.argument(named: "-UISelectedDate", in: arguments), let date = engine.date(value) {
             selectedDate = date
         }
+        if arguments.contains("-UISeedPersonalPlan"), personalBlocks.isEmpty {
+            personalBlocks = Self.previewPersonalBlocks
+        }
     }
 
     var totalCredits: Int { engine.courses.reduce(0) { $0 + $1.credits } }
     var hasImportedSchedule: Bool { defaults.data(forKey: "importedSchedule") != nil }
     var scheduleSourceName: String {
-        Self.decode(ImportedScheduleBundle.self, from: defaults.data(forKey: "importedSchedule"))?.sourceName ?? "Howdy .ics + schedule PDF"
+        Self.decode(ImportedScheduleBundle.self, from: defaults.data(forKey: "importedSchedule"))?.sourceName ?? ScheduleSeed.sourceName
     }
+
+    var personalPlanEngine: PersonalPlanEngine { PersonalPlanEngine(calendar: engine.calendar) }
 
     var classMapPins: [ClassMapPin] {
         var result: [ClassMapPin] = []
@@ -124,6 +142,7 @@ final class AppStore {
         guard let destination = defaults.string(forKey: "pendingIntentTab") else { return }
         selectedTab = switch destination {
         case "schedule": .schedule
+        case "plan": .plan
         case "map": .map
         case "saved": .saved
         default: .today
@@ -384,6 +403,83 @@ final class AppStore {
         )
         resolveVerifiedMeetingLocations()
         defaults.removeObject(forKey: "importedSchedule")
+        defaults.set(ScheduleSeed.revision, forKey: Self.embeddedScheduleRevisionKey)
+    }
+
+    func personalOccurrences(on date: Date) -> [PersonalBlockOccurrence] {
+        personalPlanEngine.occurrences(on: date, blocks: personalBlocks)
+    }
+
+    func dailyAgenda(on date: Date) -> [DailyAgendaItem] {
+        personalPlanEngine.agenda(
+            on: date,
+            classOccurrences: engine.occurrences(on: date),
+            blocks: personalBlocks
+        )
+    }
+
+    func personalPlanConflicts(on date: Date) -> [PersonalPlanConflict] {
+        personalPlanEngine.conflicts(
+            on: date,
+            classOccurrences: engine.occurrences(on: date),
+            blocks: personalBlocks
+        )
+    }
+
+    func openPlanWindows(on date: Date) -> [PlanTimeWindow] {
+        personalPlanEngine.openWindows(
+            on: date,
+            classOccurrences: engine.occurrences(on: date),
+            blocks: personalBlocks
+        )
+    }
+
+    func conflicts(for candidate: PersonalBlock) -> [PersonalPlanConflict] {
+        guard candidate.isEnabled, let start = personalPlanEngine.date(candidate.startDate) else { return [] }
+        let fallbackEnd = engine.date(engine.term.lastClassDate) ?? start
+        let end = candidate.recurrence == .once
+            ? start
+            : candidate.endDate.flatMap(personalPlanEngine.date) ?? fallbackEnd
+        let blocks = personalBlocks.filter { $0.id != candidate.id } + [candidate]
+        var day = start
+        var result: [PersonalPlanConflict] = []
+        var seen: Set<String> = []
+        var inspectedDays = 0
+
+        while day <= end, inspectedDays < 370 {
+            for conflict in personalPlanEngine.conflicts(
+                on: day,
+                classOccurrences: engine.occurrences(on: day),
+                blocks: blocks
+            ) where conflict.personalBlockIDs.contains(candidate.id) {
+                if seen.insert(conflict.id).inserted { result.append(conflict) }
+            }
+            guard let nextDay = engine.calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            day = nextDay
+            inspectedDays += 1
+        }
+        return result
+    }
+
+    func savePersonalBlock(_ block: PersonalBlock) {
+        if let index = personalBlocks.firstIndex(where: { $0.id == block.id }) {
+            personalBlocks[index] = block
+        } else {
+            personalBlocks.append(block)
+        }
+        personalBlocks.sort(by: Self.personalBlockSort)
+        persistPersonalBlocks()
+    }
+
+    func setPersonalBlock(_ block: PersonalBlock, enabled: Bool) {
+        var updated = block
+        updated.isEnabled = enabled
+        savePersonalBlock(updated)
+    }
+
+    func deletePersonalBlock(_ block: PersonalBlock) {
+        personalBlocks.removeAll { $0.id == block.id }
+        persistPersonalBlocks()
     }
 
     func exportCourseToCalendar(_ course: Course) async throws -> CalendarExportReport {
@@ -400,6 +496,10 @@ final class AppStore {
 
     private func persistFavorites() {
         defaults.set(try? JSONEncoder().encode(favoriteFeatures), forKey: "favoriteFeatures")
+    }
+
+    private func persistPersonalBlocks() {
+        defaults.set(try? JSONEncoder().encode(personalBlocks), forKey: "personalBlocks")
     }
 
     private func resolveVerifiedMeetingLocations() {
@@ -439,6 +539,53 @@ final class AppStore {
         guard let index = arguments.firstIndex(of: name), arguments.indices.contains(index + 1) else { return nil }
         return arguments[index + 1]
     }
+
+    private static func personalBlockSort(_ lhs: PersonalBlock, _ rhs: PersonalBlock) -> Bool {
+        if lhs.startHour != rhs.startHour { return lhs.startHour < rhs.startHour }
+        if lhs.startMinute != rhs.startMinute { return lhs.startMinute < rhs.startMinute }
+        return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+    }
+
+    private static let previewPersonalBlocks: [PersonalBlock] = [
+        PersonalBlock(
+            title: "Lunch break",
+            category: .meal,
+            recurrence: .weekly,
+            weekdays: [.monday, .tuesday, .wednesday, .thursday, .friday],
+            startDate: "2026-08-24",
+            endDate: "2026-12-03",
+            startHour: 12,
+            startMinute: 30,
+            endHour: 13,
+            endMinute: 15,
+            location: "MSC"
+        ),
+        PersonalBlock(
+            title: "Study MATH 251",
+            category: .study,
+            recurrence: .weekly,
+            weekdays: [.monday, .wednesday],
+            startDate: "2026-08-24",
+            endDate: "2026-12-03",
+            startHour: 16,
+            startMinute: 0,
+            endHour: 17,
+            endMinute: 30,
+            notes: "Practice problems and review notes"
+        ),
+        PersonalBlock(
+            title: "Sleep",
+            category: .sleep,
+            recurrence: .weekly,
+            weekdays: Weekday.allCases,
+            startDate: "2026-08-24",
+            endDate: "2026-12-03",
+            startHour: 23,
+            startMinute: 0,
+            endHour: 7,
+            endMinute: 0
+        )
+    ]
 }
 
 private extension String {

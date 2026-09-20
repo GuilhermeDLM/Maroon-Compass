@@ -1,6 +1,6 @@
 # Maroon Compass
 
-Maroon Compass is a private, local-first iPhone and iPad campus companion for a Texas A&M University student’s Fall 2026 semester. It combines the supplied Howdy calendar and official schedule PDF with campus data, Apple Maps places and routes, academic-calendar exceptions, safety resources, widgets, Shortcuts, calendar export, and optional local reminders.
+Maroon Compass is a private, local-first iPhone and iPad campus companion for a Texas A&M University student’s Fall 2026 semester. It combines the supplied Howdy registration schedule with campus data, Apple Maps places and routes, academic-calendar exceptions, safety resources, widgets, Shortcuts, calendar export, and optional local reminders.
 
 ## Platform decision
 
@@ -9,11 +9,12 @@ This project intentionally targets native iOS and iPadOS, overriding the workspa
 ## Shipped product surface
 
 - Today dashboard with next-class countdown, campus-time awareness, academic exceptions, timeline, free-gap context, real route estimates, and calculated leave-by guidance.
-- Schedule with all six courses, 13 credits, nine recurring source records, three special MATH meetings, holidays, reading days, the December 1 redefined Friday schedule, finals-week missing-data handling, overlap warnings, and between-class transitions.
+- Schedule with all six courses, 12 credits, eight recurring source records, holidays, reading days, the December 1 redefined Friday schedule, finals-week missing-data handling, overlap warnings, and between-class transitions.
+- Personal Plan with protected class meetings, customizable one-time and weekly blocks, weekday and date-range controls, overnight sleep support, category styling, optional notes and locations, quick-start templates, open-time suggestions, and class/personal conflict detection.
 - Official Texas A&M building, garage, visitor-parking, and surface-lot search from public ArcGIS services. The map starts with a quiet visitor/garage layer while keeping the full parking inventory searchable.
 - Apple Maps discovery for nearby food, coffee, groceries, and pharmacies, with configurable search anchor, walking-time filters, place details, calling, saving, sharing, and directions.
 - Real MapKit route polylines for the next class and for a selected day’s class-to-class path. Walking or driving mode and a safety buffer are configurable.
-- Verified per-meeting buildings, rooms, and instructors from the supplied Howdy schedule PDF, including MATH’s separate lecture, lab, and exam locations. Manual overrides remain available.
+- Complete Howdy course details—including enrollment status, CRN, subject, course number, section, credits, instruction mode, instructor, and every meeting location—are available from each course. Manual building overrides remain available.
 - A private, on-device `.ics` re-import flow in Settings for future Howdy schedule updates; imports support `TZID`, UTC conversion, folded lines, `EXDATE`, `RDATE`, source notes, and location hints. Howdy recurrence anchors are normalized and saved locations remain intact.
 - Per-course Apple Calendar export using write-only access, occurrence expansion, academic exceptions, and duplicate prevention.
 - Home Screen and Lock Screen next-class widgets plus App Shortcuts for What’s Next, Today’s Schedule, and routing to the next confirmed class.
@@ -26,20 +27,21 @@ This project intentionally targets native iOS and iPadOS, overriding the workspa
 - `Models/`: schedule, occurrence, route, campus, place, location, and resource domain values.
 - `Data/ScheduleSeed.swift`: normalized user schedule and verified Fall 2026 academic exceptions.
 - `Services/ScheduleEngine.swift`: campus-time recurrence expansion, exception precedence, next meeting, conflicts, and free-gap calculation.
+- `Services/PersonalPlanEngine.swift`: local personal recurrence expansion, overnight handling, combined agendas, conflict detection, and open-time calculation.
 - `Services/ICSImporter.swift`: defensive calendar parsing and recurrence normalization.
 - `Services/CampusGISService.swift`: official building and parking ArcGIS decoding with atomic local caching.
 - `Services/PlacesSearchService.swift` and `RouteService.swift`: dynamic local search, ETA enrichment, and route calculation.
 - `Services/CalendarExportService.swift`: explicit per-course EventKit export and duplicate tracking.
 - `Services/MaroonCompassIntents.swift`: App Intents and system Shortcuts.
 - `Services/AppStore.swift`: main-actor application state, preferences, favorites, and recent-search persistence.
-- `Views/`: five-tab product UI and supporting flows.
+- `Views/`: six-tab product UI and supporting flows; iPhone keeps Today, Schedule, Plan, and Map visible while Saved and Settings remain available under More.
 - `MaroonCompassWidget/`: App Intent-powered Home Screen and Lock Screen widgets.
 
 No third-party dependencies, backend, account, analytics, advertising, tracking, or NetID access are used.
 
 ## Data and privacy
 
-Schedule data, confirmed class locations, reminder preferences, export identifiers, recent searches, and favorites remain on device. Campus metadata comes from public Texas A&M GIS services and is cached with its fetch date. Commercial place results and routes come from Apple Maps at runtime. Precise user location is not logged or persisted.
+Schedule data, personal blocks, confirmed class locations, reminder preferences, export identifiers, recent searches, and favorites remain on device. Personal blocks are stored separately from the imported class schedule, so editing or deleting them cannot alter a class meeting. Campus metadata comes from public Texas A&M GIS services and is cached with its fetch date. Commercial place results and routes come from Apple Maps at runtime. Precise user location is not logged or persisted.
 
 The widget deliberately uses the embedded verified Fall 2026 schedule. Imported calendar changes and manual room overrides remain private to the main app because this local build does not request an App Group entitlement.
 
@@ -63,7 +65,7 @@ xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass -destination '
 xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass -configuration Release -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-There are no third-party dependencies or generated dependency state. Fourteen domain and calendar-import tests cover recurrence, exceptions, source normalization, campus civil time, DST, verified PDF details, and seed integrity. `DerivedData` and local screenshots are excluded from source control.
+There are no third-party dependencies or generated dependency state. Twenty-one automated tests cover class recurrence, exceptions, source normalization, campus civil time, DST, complete Howdy metadata, personal weekly and one-time recurrence, overnight blocks, conflict detection, local persistence, and seed integrity. `DerivedData` and local screenshots are excluded from source control.
 
 ## Personal Team renewal
 
@@ -76,3 +78,7 @@ Run `Tools/RenewDeviceInstallation.zsh --check-only` for a read-only status chec
 Before installing the renewal agent on a new Mac, copy `Tools/RenewalConfig.example.zsh` to `Tools/RenewalConfig.local.zsh` and set the iPhone identifier reported by `xcrun devicectl list devices`. The local file is git-ignored so a personal device identifier is never committed.
 
 The LaunchAgent uses a self-contained source copy in `~/Library/Application Support/Maroon Compass Renewal/Project` because macOS privacy controls prevent a standalone background shell from reading Documents directly. Run `Tools/InstallRenewalAgent.zsh` after future source updates to refresh that private copy and restart the agent; installation preserves the shared renewal state.
+
+## Repository continuity
+
+Read [AGENTS.md](AGENTS.md) and [docs/PROJECT_STATE.md](docs/PROJECT_STATE.md) before continuing. The iOS mega prompt is preserved in `docs/source-material/MEGA_PROMPT.md`. Keep the ignored renewal configuration and device identifier local.

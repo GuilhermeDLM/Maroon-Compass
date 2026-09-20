@@ -1,6 +1,9 @@
 import Foundation
 
 enum ScheduleSeed {
+    static let revision = "fall-2026-howdy-2026-08-29"
+    static let sourceName = "Howdy registration · Aug 29, 2026"
+
     static let term = Term(
         institution: "Texas A&M University",
         campus: "College Station",
@@ -21,7 +24,11 @@ enum ScheduleSeed {
             credits: 3,
             catalogSummary: "Chemistry concepts and principles with an emphasis on engineering context and practical applications.",
             colorHex: "C46D2E",
-            symbol: "atom"
+            symbol: "atom",
+            status: "Enrolled",
+            crn: "10535",
+            instructionMode: "Traditional Face-to-Face (F2F)",
+            instructor: "Han, Sungyub"
         ),
         Course(
             id: "CHEM-117-541",
@@ -31,7 +38,11 @@ enum ScheduleSeed {
             credits: 1,
             catalogSummary: "Laboratory applications of chemistry concepts relevant to engineering and technology.",
             colorHex: "D88B45",
-            symbol: "flask.fill"
+            symbol: "flask.fill",
+            status: "Enrolled",
+            crn: "20335",
+            instructionMode: "Traditional Face-to-Face (F2F)",
+            instructor: "Martinez, Zachary Michael"
         ),
         Course(
             id: "ENGR-102-505",
@@ -41,57 +52,68 @@ enum ScheduleSeed {
             credits: 2,
             catalogSummary: "Computer applications for engineers, problem solving, software design, debugging, ethics, and pathways to success.",
             colorHex: "287D8E",
-            symbol: "chevron.left.forwardslash.chevron.right"
+            symbol: "chevron.left.forwardslash.chevron.right",
+            status: "Enrolled",
+            crn: "36091",
+            instructionMode: "Traditional Face-to-Face (F2F)",
+            instructor: "Spears, Craig Michael"
         ),
         Course(
-            id: "FYEX-101-537",
+            id: "FYEX-101-563",
             code: "FYEX 101",
-            section: "537",
+            section: "563",
             title: "First Year Experience",
             credits: 0,
             catalogSummary: "Self-efficacy, engagement in learning, purpose, and integration into the university community.",
             colorHex: "8A63B8",
-            symbol: "person.3.fill"
+            symbol: "person.3.fill",
+            status: "Enrolled",
+            crn: "43150",
+            instructionMode: "Traditional Face-to-Face (F2F)",
+            instructor: "Soles, Chandris Christina"
         ),
         Course(
-            id: "MATH-151-531",
-            code: "MATH 151",
-            section: "531",
-            title: "Engineering Mathematics I",
-            credits: 4,
-            catalogSummary: "Coordinates, vectors, analytic geometry, functions, limits, derivatives, integration, and computer algebra.",
-            colorHex: "2B67B2",
-            symbol: "function"
-        ),
-        Course(
-            id: "POLS-207-502",
-            code: "POLS 207",
+            id: "MATH-251-502",
+            code: "MATH 251",
             section: "502",
+            title: "Engineering Mathematics III",
+            credits: 3,
+            catalogSummary: "Vector algebra and multivariable calculus, including partial derivatives, multiple integration, line and surface integrals, and Green’s and Stokes’ theorems.",
+            colorHex: "2B67B2",
+            symbol: "function",
+            status: "Enrolled",
+            crn: "11953",
+            instructionMode: "Traditional Face-to-Face (F2F)",
+            instructor: "Yang, Yuxuan"
+        ),
+        Course(
+            id: "POLS-207-510",
+            code: "POLS 207",
+            section: "510",
             title: "State and Local Government",
             credits: 3,
             catalogSummary: "State and local government and politics, with special reference to the constitution and politics of Texas.",
             colorHex: "57784B",
-            symbol: "building.columns.fill"
+            symbol: "building.columns.fill",
+            status: "Enrolled",
+            crn: "45754",
+            instructionMode: "Traditional Face-to-Face (F2F)",
+            instructor: "Lim, Phaik"
         )
     ]
 
     static let patterns: [MeetingPattern] = [
-        MeetingPattern(id: "52dfe775-292f-4166-a87f-9fb574d05e0b", courseID: "CHEM-107-504", weekdays: [.tuesday, .thursday], startHour: 8, startMinute: 0, endHour: 9, endMinute: 15, sourceUntilUTC: "2026-12-10T15:15:00Z", sourceLocationText: "ILCB · 113", sourceNotes: "Instructor: Sungyub Han"),
-        MeetingPattern(id: "375e47cc-d616-4cdb-99e1-b159b2ceefc7", courseID: "CHEM-117-541", weekdays: [.tuesday], startHour: 11, startMinute: 10, endHour: 14, endMinute: 0, sourceUntilUTC: "2026-12-10T20:00:00Z", sourceLocationText: "ILSQ · E311", sourceNotes: "Instructor: Zachary Martinez"),
-        MeetingPattern(id: "021400c7-8ea4-4f5a-a69e-4e7cadec98fa", courseID: "ENGR-102-505", weekdays: [.monday], startHour: 17, startMinute: 10, endHour: 18, endMinute: 0, sourceUntilUTC: "2026-12-11T00:00:00Z", sourceLocationText: "ZACH · 353", sourceNotes: "Instructor: Craig Spears"),
-        MeetingPattern(id: "59e3847c-c41f-47cf-b99f-a5529eda24b9", courseID: "ENGR-102-505", weekdays: [.wednesday], startHour: 17, startMinute: 10, endHour: 19, endMinute: 0, sourceUntilUTC: "2026-12-11T01:00:00Z", sourceLocationText: "ZACH · 353", sourceNotes: "Instructor: Craig Spears"),
-        MeetingPattern(id: "25571d5d-ab8c-408d-81b3-f2b6553574b3", courseID: "ENGR-102-505", weekdays: [.monday], startHour: 18, startMinute: 1, endHour: 19, endMinute: 0, sourceUntilUTC: "2026-12-11T01:00:00Z", sourceLocationText: "ZACH · 353", sourceNotes: "Instructor: Craig Spears"),
-        MeetingPattern(id: "ad304b0d-58d2-44e0-af37-1f3ead149fee", courseID: "FYEX-101-537", weekdays: [.monday], startHour: 15, startMinute: 0, endHour: 15, endMinute: 50, sourceUntilUTC: "2026-12-10T21:50:00Z", sourceLocationText: "BLOC · 105", sourceNotes: "Instructor: Susan Owen"),
-        MeetingPattern(id: "117116d5-28bf-4d80-bdda-15d648ae23bc", courseID: "MATH-151-531", weekdays: [.tuesday, .thursday], startHour: 15, startMinute: 55, endHour: 17, endMinute: 10, sourceUntilUTC: "2026-12-10T23:10:00Z", sourceLocationText: "HELD · 100", sourceNotes: "Instructor: Christopher Sze"),
-        MeetingPattern(id: "0abe17c7-e4fd-44a2-bf00-5499b655ddcc", courseID: "MATH-151-531", weekdays: [.monday, .wednesday], startHour: 11, startMinute: 30, endHour: 12, endMinute: 20, sourceUntilUTC: "2026-12-10T18:20:00Z", sourceLocationText: "BLOC · 123", sourceNotes: "Instructor: Christopher Sze"),
-        MeetingPattern(id: "a132c235-725e-42e2-9df5-d47d3c06680c", courseID: "POLS-207-502", weekdays: [.monday, .wednesday, .friday], startHour: 9, startMinute: 10, endHour: 10, endMinute: 0, sourceUntilUTC: "2026-12-10T16:00:00Z", sourceLocationText: "ILCB · 113", sourceNotes: "Instructor: Dwight Roblyer")
+        MeetingPattern(id: "52dfe775-292f-4166-a87f-9fb574d05e0b", courseID: "CHEM-107-504", weekdays: [.tuesday, .thursday], startHour: 8, startMinute: 0, endHour: 9, endMinute: 15, sourceUntilUTC: "2026-12-10T15:15:00Z", sourceLocationText: "ILCB · 113", sourceNotes: "Instructor: Han, Sungyub"),
+        MeetingPattern(id: "375e47cc-d616-4cdb-99e1-b159b2ceefc7", courseID: "CHEM-117-541", weekdays: [.tuesday], startHour: 11, startMinute: 10, endHour: 14, endMinute: 0, sourceUntilUTC: "2026-12-10T20:00:00Z", sourceLocationText: "ILSQ · E311", sourceNotes: "Instructor: Martinez, Zachary Michael"),
+        MeetingPattern(id: "021400c7-8ea4-4f5a-a69e-4e7cadec98fa", courseID: "ENGR-102-505", weekdays: [.monday], startHour: 17, startMinute: 10, endHour: 18, endMinute: 0, sourceUntilUTC: "2026-12-11T00:00:00Z", sourceLocationText: "ZACH · 353", sourceNotes: "Instructor: Spears, Craig Michael"),
+        MeetingPattern(id: "59e3847c-c41f-47cf-b99f-a5529eda24b9", courseID: "ENGR-102-505", weekdays: [.wednesday], startHour: 17, startMinute: 10, endHour: 19, endMinute: 0, sourceUntilUTC: "2026-12-11T01:00:00Z", sourceLocationText: "ZACH · 353", sourceNotes: "Instructor: Spears, Craig Michael"),
+        MeetingPattern(id: "25571d5d-ab8c-408d-81b3-f2b6553574b3", courseID: "ENGR-102-505", weekdays: [.monday], startHour: 18, startMinute: 1, endHour: 19, endMinute: 0, sourceUntilUTC: "2026-12-11T01:00:00Z", sourceLocationText: "ZACH · 353", sourceNotes: "Instructor: Spears, Craig Michael"),
+        MeetingPattern(id: "howdy-43150-weekly", courseID: "FYEX-101-563", weekdays: [.wednesday], startHour: 15, startMinute: 0, endHour: 15, endMinute: 50, sourceUntilUTC: "2026-12-10T21:50:00Z", sourceLocationText: "HECC · 202", sourceNotes: "Instructor: Soles, Chandris Christina"),
+        MeetingPattern(id: "howdy-11953-weekly", courseID: "MATH-251-502", weekdays: [.tuesday, .thursday], startHour: 17, startMinute: 30, endHour: 18, endMinute: 45, sourceUntilUTC: "2026-12-11T00:45:00Z", sourceLocationText: "BLOC · 169", sourceNotes: "Instructor: Yang, Yuxuan"),
+        MeetingPattern(id: "howdy-45754-weekly", courseID: "POLS-207-510", weekdays: [.tuesday, .thursday], startHour: 14, startMinute: 20, endHour: 15, endMinute: 35, sourceUntilUTC: "2026-12-10T21:35:00Z", sourceLocationText: "BLOC · 102", sourceNotes: "Instructor: Lim, Phaik")
     ]
 
-    static let oneTimeEvents: [OneTimeEvent] = [
-        OneTimeEvent(id: "64574d25-5887-4949-9843-fe709564f0ce", courseID: "MATH-151-531", date: "2026-09-17", startHour: 17, startMinute: 30, endHour: 18, endMinute: 45, title: "MATH 151 exam", sourceLocationText: "HECC · 203", sourceNotes: "Instructor: Christopher Sze"),
-        OneTimeEvent(id: "e1211fb3-71cd-4244-9f33-db890053614d", courseID: "MATH-151-531", date: "2026-10-22", startHour: 17, startMinute: 30, endHour: 18, endMinute: 45, title: "MATH 151 exam", sourceLocationText: "HECC · 203", sourceNotes: "Instructor: Christopher Sze"),
-        OneTimeEvent(id: "e862bc29-8d2e-4822-b590-c7e4ffd3b25f", courseID: "MATH-151-531", date: "2026-11-19", startHour: 17, startMinute: 30, endHour: 18, endMinute: 45, title: "MATH 151 exam", sourceLocationText: "HECC · 203", sourceNotes: "Instructor: Christopher Sze")
-    ]
+    static let oneTimeEvents: [OneTimeEvent] = []
 
     static let exceptions: [AcademicException] = [
         AcademicException(date: "2026-08-28", kind: .milestone, title: "Add/drop deadline", detail: "Last day to add or drop fall courses."),

@@ -33,6 +33,20 @@ struct CourseGlyph: View {
     }
 }
 
+struct PersonalBlockGlyph: View {
+    let category: PersonalBlockCategory
+    var size: CGFloat = 42
+
+    var body: some View {
+        Image(systemName: category.symbol)
+            .font(.system(size: size * 0.42, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(category.tint.gradient, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
 struct OccurrenceRow: View {
     let occurrence: ScheduleOccurrence
     let location: CourseLocation?
@@ -91,6 +105,64 @@ struct OccurrenceRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(occurrence.course.code), \(CampusFormatters.time.string(from: occurrence.start)) to \(CampusFormatters.time.string(from: occurrence.end)), \(location?.feature.name ?? sourceLocationText ?? "location not added")")
+    }
+}
+
+struct PersonalBlockRow: View {
+    let occurrence: PersonalBlockOccurrence
+    var showsDisclosure = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(CampusFormatters.time.string(from: occurrence.visibleStart))
+                    .font(.subheadline.weight(.semibold))
+                Text(CampusFormatters.time.string(from: occurrence.visibleEnd))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 72, alignment: .trailing)
+
+            RoundedRectangle(cornerRadius: 2)
+                .fill(occurrence.block.category.tint)
+                .frame(width: 4, height: 58)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 7) {
+                    Image(systemName: occurrence.block.category.symbol)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(occurrence.block.category.tint)
+                    Text(occurrence.block.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                }
+                HStack(spacing: 5) {
+                    Text(occurrence.block.category.title)
+                    if let location = occurrence.block.location, !location.isEmpty {
+                        Text("·")
+                        Text(location).lineLimit(1)
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                if occurrence.continuesFromPreviousDay || occurrence.continuesIntoNextDay {
+                    Text(occurrence.continuesFromPreviousDay ? "Continues from yesterday" : "Continues tomorrow")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(occurrence.block.category.tint)
+                }
+            }
+            Spacer(minLength: 0)
+            if showsDisclosure {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 5)
+            }
+        }
+        .contentShape(Rectangle())
+        .opacity(occurrence.block.isEnabled ? 1 : 0.55)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(occurrence.block.title), \(CampusFormatters.time.string(from: occurrence.visibleStart)) to \(CampusFormatters.time.string(from: occurrence.visibleEnd)), \(occurrence.block.category.title)")
     }
 }
 
