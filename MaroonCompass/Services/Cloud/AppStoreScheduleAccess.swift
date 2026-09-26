@@ -47,7 +47,7 @@ final class AppStoreScheduleAccess: LocalScheduleAccess {
     func restore(_ backup: LocalScheduleBackup) throws {
         switch backup {
         case .embedded:
-            store.restoreEmbeddedSchedule()
+            try store.restoreEmbeddedSchedule()
         case .imported(let data):
             try store.saveImportedSchedule(JSONDecoder().decode(ImportedScheduleBundle.self, from: data))
         }

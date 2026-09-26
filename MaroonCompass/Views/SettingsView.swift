@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var isPhotoImportPresented = false
     @State private var importReport: CalendarImportReport?
     @State private var importError: String?
+    @State private var scheduleRestoreError: String?
     @State private var isRestoreConfirmationPresented = false
 
     var body: some View {
@@ -27,6 +28,11 @@ struct SettingsView: View {
                 }
                 Button("Import from a photo or enter classes", systemImage: "photo.on.rectangle.angled") {
                     isPhotoImportPresented = true
+                }
+                NavigationLink {
+                    ScheduleHistoryView()
+                } label: {
+                    Label("Previous schedules", systemImage: "clock.arrow.circlepath")
                 }
                 if store.hasImportedSchedule {
                     Button("Restore embedded schedule", systemImage: "arrow.counterclockwise", role: .destructive) {
@@ -161,11 +167,19 @@ struct SettingsView: View {
         } message: {
             Text(importError ?? "The selected file could not be imported.")
         }
+        .alert("Schedule could not be restored", isPresented: Binding(get: { scheduleRestoreError != nil }, set: { if !$0 { scheduleRestoreError = nil } })) {
+            Button("OK", role: .cancel) { scheduleRestoreError = nil }
+        } message: {
+            Text(scheduleRestoreError ?? "Your current schedule was kept.")
+        }
         .confirmationDialog("Restore the original embedded schedule?", isPresented: $isRestoreConfirmationPresented, titleVisibility: .visible) {
-            Button("Restore embedded schedule", role: .destructive) { store.restoreEmbeddedSchedule() }
+            Button("Restore embedded schedule", role: .destructive) {
+                do { try store.restoreEmbeddedSchedule() }
+                catch { scheduleRestoreError = error.localizedDescription }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This replaces the imported class patterns. Saved building assignments and favorites are kept.")
+            Text("The imported schedule will be saved in Previous schedules first. Saved building assignments and favorites are kept.")
         }
     }
 
