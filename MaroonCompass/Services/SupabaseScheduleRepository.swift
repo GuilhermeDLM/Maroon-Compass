@@ -131,6 +131,54 @@ struct CloudMeeting: Encodable, Sendable {
 struct SupabaseScheduleRepository {
     let configuration: SupabaseConfiguration
 
+    private struct RemoteSemester: Decodable {
+        let name: String
+        let firstClassDate: String
+        let lastClassDate: String
+        let syncVersion: Int
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case firstClassDate = "first_class_date"
+            case lastClassDate = "last_class_date"
+            case syncVersion = "sync_version"
+        }
+    }
+
+    private struct RemoteCourse: Decodable {
+        let id: UUID
+        let code: String
+        let title: String
+        let section: String?
+        let credits: Double?
+        let colorHex: String?
+
+        enum CodingKeys: String, CodingKey {
+            case id, code, title, section, credits
+            case colorHex = "color_hex"
+        }
+    }
+
+    private struct RemoteMeeting: Decodable {
+        let id: UUID
+        let courseID: UUID
+        let meetingType: String
+        let weekdays: [Int]
+        let startTime: String
+        let endTime: String
+        let buildingCode: String?
+        let room: String?
+
+        enum CodingKeys: String, CodingKey {
+            case id, weekdays, room
+            case courseID = "course_id"
+            case meetingType = "meeting_type"
+            case startTime = "start_time"
+            case endTime = "end_time"
+            case buildingCode = "building_code"
+        }
+    }
+
     func replace(_ snapshot: CloudScheduleSnapshot, expectedVersion: Int?, accessToken: String) async throws -> Int {
         struct Arguments: Encodable {
             let p_semester_id: UUID
@@ -155,9 +203,86 @@ struct SupabaseScheduleRepository {
         return try JSONDecoder().decode(Int.self, from: data)
     }
 
+    func load(semesterID: UUID, accessToken: String) async throws -> (ImportedScheduleBundle, Int) {
+        let decoder = JSONDecoder()
+        let semesters = try decoder.decode([RemoteSemester].self, from: await get(
+            "semesters", query: ["id": "eq.\(semesterID.uuidString)", "select": "name,first_class_date,last_class_date,sync_version"],
+            accessToken: accessToken
+        ))
+        guard let semester = semesters.first else { throw CloudScheduleError.missingSchedule }
+        let remoteCourses = try decoder.decode([RemoteCourse].self, from: await get(
+            "courses", query: ["semester_id": "eq.\(semesterID.uuidString)", "select": "id,code,title,section,credits,color_hex"],
+            accessToken: accessToken
+        ))
+        guard !remoteCourses.isEmpty else { throw CloudScheduleError.unsupportedSchedule }
+        let courseIDs = remoteCourses.map { $0.id.uuidString }.joined(separator: ",")
+        let remoteMeetings = try decoder.decode([RemoteMeeting].self, from: await get(
+            "course_meetings", query: ["course_id": "in.(\(courseIDs))", "select": "id,course_id,meeting_type,weekdays,start_time,end_time,building_code,room"],
+            accessToken: accessToken
+        ))
+
+        var courses: [Course] = []
+        var patterns: [MeetingPattern] = []
+        for remoteCourse in remoteCourses {
+            let credits = remoteCourse.credits ?? 0
+            guard credits.isFinite, credits >= 0, credits.rounded() == credits,
+                  credits <= Double(Int.max) else { throw CloudScheduleError.unsupportedSchedule }
+            courses.append(Course(
+                id: remoteCourse.id.uuidString, code: remoteCourse.code,
+                section: remoteCourse.section ?? "", title: remoteCourse.title,
+                credits: Int(credits), catalogSummary: "",
+                colorHex: remoteCourse.colorHex ?? "5E2E42", symbol: "book.closed.fill"
+            ))
+            let meetings = remoteMeetings.filter { $0.courseID == remoteCourse.id }
+            guard !meetings.isEmpty else { throw CloudScheduleError.unsupportedSchedule }
+            for meeting in meetings {
+                guard let start = MeetingTime.parse(String(meeting.startTime.prefix(5))),
+                      let end = MeetingTime.parse(String(meeting.endTime.prefix(5))),
+                      start.minutesSinceMidnight < end.minutesSinceMidnight,
+                      meeting.weekdays.count == Set(meeting.weekdays).count,
+                      !meeting.weekdays.isEmpty,
+                      meeting.weekdays.allSatisfy({ (1...7).contains($0) }) else {
+                    throw CloudScheduleError.unsupportedSchedule
+                }
+                let days = meeting.weekdays.sorted().map { Weekday.allCases[$0 - 1] }
+                let location = [meeting.buildingCode, meeting.room].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+                patterns.append(MeetingPattern(
+                    id: meeting.id.uuidString, courseID: remoteCourse.id.uuidString,
+                    weekdays: days, startHour: start.hour, startMinute: start.minute,
+                    endHour: end.hour, endMinute: end.minute, sourceUntilUTC: "",
+                    sourceLocationText: location.isEmpty ? nil : location,
+                    meetingKind: MeetingKind(rawValue: meeting.meetingType) ?? .other,
+                    buildingCode: meeting.buildingCode, room: meeting.room
+                ))
+            }
+        }
+        guard remoteMeetings.count == patterns.count else { throw CloudScheduleError.unsupportedSchedule }
+        let term = Term(
+            institution: "Texas A&M University", campus: "College Station",
+            name: semester.name, firstClassDate: semester.firstClassDate,
+            lastClassDate: semester.lastClassDate, finalsStartDate: nil,
+            finalsEndDate: nil, timeZoneIdentifier: "America/Chicago"
+        )
+        return (ImportedScheduleBundle(
+            sourceName: "Cloud schedule", importedAt: Date(), term: term,
+            courses: courses, patterns: patterns, oneTimeEvents: []
+        ), semester.syncVersion)
+    }
+
+    private func get(_ table: String, query: [String: String], accessToken: String) async throws -> Data {
+        var components = URLComponents(url: configuration.projectURL.appending(path: "rest/v1/\(table)"), resolvingAgainstBaseURL: false)!
+        components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        guard let url = components.url else { throw CloudScheduleError.unavailable }
+        return try await request(url: url, method: "GET", body: nil, accessToken: accessToken)
+    }
+
     private func request(path: String, method: String, body: Data?, accessToken: String) async throws -> Data {
         guard !accessToken.isEmpty else { throw CloudScheduleError.invalidSession }
         let url = configuration.projectURL.appending(path: path)
+        return try await request(url: url, method: method, body: body, accessToken: accessToken)
+    }
+
+    private func request(url: URL, method: String, body: Data?, accessToken: String) async throws -> Data {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = body
