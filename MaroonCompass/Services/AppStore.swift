@@ -74,12 +74,13 @@ final class AppStore {
         courseLocations = Self.reconcileEmbeddedScheduleRevision(defaults: defaults, courseLocations: courseLocations)
 
         if let bundle = Self.decode(ImportedScheduleBundle.self, from: defaults.data(forKey: "importedSchedule")) {
+            let term = bundle.term ?? ScheduleSeed.term
             engine = ScheduleEngine(
-                term: ScheduleSeed.term,
+                term: term,
                 courses: bundle.courses,
                 patterns: bundle.patterns,
                 oneTimeEvents: bundle.oneTimeEvents,
-                exceptions: ScheduleSeed.exceptions
+                exceptions: Self.exceptions(for: term)
             )
         }
 
@@ -375,16 +376,22 @@ final class AppStore {
 
     func importCalendar(data: Data, sourceName: String) throws -> CalendarImportReport {
         let (bundle, report) = try importService.parse(data: data, sourceName: sourceName)
+        try saveImportedSchedule(bundle)
+        return report
+    }
+
+    func saveImportedSchedule(_ bundle: ImportedScheduleBundle) throws {
+        let encoded = try JSONEncoder().encode(bundle)
+        let term = bundle.term ?? ScheduleSeed.term
+        defaults.set(encoded, forKey: "importedSchedule")
         engine = ScheduleEngine(
-            term: ScheduleSeed.term,
+            term: term,
             courses: bundle.courses,
             patterns: bundle.patterns,
             oneTimeEvents: bundle.oneTimeEvents,
-            exceptions: ScheduleSeed.exceptions
+            exceptions: Self.exceptions(for: term)
         )
         resolveVerifiedMeetingLocations()
-        defaults.set(try JSONEncoder().encode(bundle), forKey: "importedSchedule")
-        return report
     }
 
     func restoreEmbeddedSchedule() {
@@ -527,6 +534,12 @@ final class AppStore {
     private static func decode<T: Decodable>(_ type: T.Type, from data: Data?) -> T? {
         guard let data else { return nil }
         return try? JSONDecoder().decode(type, from: data)
+    }
+
+    private static func exceptions(for term: Term) -> [AcademicException] {
+        guard term.firstClassDate == ScheduleSeed.term.firstClassDate,
+              term.lastClassDate == ScheduleSeed.term.lastClassDate else { return [] }
+        return ScheduleSeed.exceptions
     }
 
     static func reconcileEmbeddedScheduleRevision(
