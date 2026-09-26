@@ -40,10 +40,11 @@ Work occurred in an isolated copy at `/Users/guilhermemachado/Documents/Codex/20
 ## Separate import-quality PR — 2026-09-26
 
 The focused branch `gpt/schedule-import-quality-20260926` was created from PR #2
-head `16249d96b56e876dd518491eb51d1bfd1379f7fa`. Its first pushed code
-checkpoint is `0fa89ee77b72e5dab5adf69e5bc6a803712790c8`, in draft PR #3
-targeting PR #2. The PR head shown by GitHub is authoritative after later
-documentation or fix commits.
+head `16249d96b56e876dd518491eb51d1bfd1379f7fa`. Its latest source and
+workflow checkpoint before this documentation update is
+`78723e0db2140d0c2a335a20c90d53d68a2cc685`, in draft PR #3 targeting
+PR #2. The PR head shown by GitHub is authoritative after this documentation
+commit. PR #2's head was rechecked on 2026-09-26 and remained unchanged.
 
 This branch changes `ScheduleDraft.swift`, `ScheduleImageImportService.swift`,
 `ScheduleImportView.swift`, the existing QA launch route in `RootView.swift`,
@@ -55,15 +56,32 @@ duplicate meetings, and keeps adjacent meetings valid. The OCR fallback now
 associates repeated course headers with the correct course and transcribes
 visible building/room text without normalizing ambiguous characters.
 
-The synthetic fixtures and evaluation protocol are described in
-`docs/IMPORT_QA.md`. The first GitHub Xcode 27 workflow run
-<https://github.com/GuilhermeDLM/Maroon-Compass/actions/runs/36221399933>
-compiled the Debug targets but produced no test output after nine minutes;
-it was canceled and the workflow was changed to run simulator tests serially.
-No new test count, simulator UI result, signed build, physical install,
-physical launch, or Apple Intelligence accuracy is claimed from that run.
-The Windows checkout has no Swift/Xcode toolchain. Continue with the serial
-workflow result, fix any failures on this branch, inspect the compiled
-light/dark import screenshots, then have the integrator handle signing and
-device verification. Keep PR #3 draft until those source and simulator gates
-are recorded.
+The synthetic fixtures, prioritized QA matrix, and field-level results are in
+`docs/IMPORT_QA.md`. The Xcode 27 iPhone 18 Pro simulator run
+<https://github.com/GuilhermeDLM/Maroon-Compass/actions/runs/36222539052>
+at source head `b22d3d073bc928890c5be4975e3a3d991109c836` passed 36/36 tests,
+built the unsigned simulator Release configuration, launched the compiled
+import sheet, and uploaded light/dark screenshots (artifact `10899901063`).
+Both screenshots were visually inspected: the empty state shows its date fields,
+inline missing-course error, and a visibly disabled “Fix issues to save” row.
+Five synthetic Vision/OCR images yielded 9/9 course codes, 8/9 titles, 9/9
+sections, 10/10 weekdays, times, and buildings, and 7/10 rooms, with zero
+false course/meeting additions. One capital `I` became `|`; three `1O9` rooms
+became `109`. The result is an OCR-only synthetic evaluation, not evidence of
+Foundation Models accuracy.
+
+The final source/workflow checkpoint `78723e0` passed the 36-test suite and
+simulator Release build again in
+<https://github.com/GuilhermeDLM/Maroon-Compass/actions/runs/36222628435>.
+Its artifact `10899916521` contains the two iPhone 18 Pro appearances, a
+compact iPhone 17e layout, and an iPad mini layout. All four PNGs were visually
+inspected. The compact screen wraps its photo action cleanly; the iPad presents
+a centered native sheet with its lower save row below the visible fold.
+
+The Windows checkout has no Swift/Xcode toolchain. There is no new signed
+build, physical install/launch, Apple Intelligence runtime check, hands-on
+VoiceOver or Dynamic Type check, or real-screen extraction claim for PR #3.
+Next safe action: the integrator should restack this draft PR and verify
+editing, iPad scrolling, keyboard, VoiceOver, Dynamic Type, save confirmation,
+and an explicitly redacted real schedule image on a reachable device before
+merging. Keep PR #3 draft.

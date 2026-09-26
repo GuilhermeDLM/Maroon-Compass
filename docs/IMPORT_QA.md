@@ -19,9 +19,9 @@ evidence that Vision or Apple Intelligence extracts a real Howdy screen.
 | P1 | Course title containing a number, multiple meetings, lab/recitation | Preserve visible text and separate meetings | Synthetic OCR transcript regression added; images generated for Vision evaluation |
 | P1 | Missing weekday column or unrelated page time | Leave a correctable blank meeting; avoid attaching unrelated times | OCR parser requires visible weekdays for an extracted meeting; transcript regression added |
 | P1 | Building/room with similar-looking `1`, `I`, `O`, `0` | Transcribe visible characters without automatic correction | Synthetic `BLOC 1O9` fixture; review note tells student to compare the image |
-| P1 | Small iPhone, Dynamic Type, VoiceOver, dark mode | Keep every field and error readable and operable | Weekday controls now use 44-point targets in a four-column grid; field errors are inline; simulator screenshots and accessibility review pending |
+| P1 | Small iPhone, Dynamic Type, VoiceOver, dark mode | Keep every field and error readable and operable | Weekday controls now use 44-point targets in a four-column grid; field errors are inline; iPhone 17e and light/dark screenshots inspected, VoiceOver/Dynamic Type interaction pending |
 | P2 | Analysis failure, cancellation, model unavailable | Preserve the existing draft and allow manual entry | Existing manual/OCR fallback retained; analysis task cancellation added; runtime test pending |
-| P2 | iPad keyboard and reduced motion | Usable native form with clear focus and no decorative animation | No custom motion; direct iPad and keyboard review pending |
+| P2 | iPad keyboard and reduced motion | Usable native form with clear focus and no decorative animation | No custom motion; iPad mini empty-state screenshot inspected, scrolling and keyboard interaction pending |
 | P2 | Physical Apple Intelligence, photo permission, cloud absence | Check actual device availability; selected image remains local | Physical device and Auth state unavailable in this checkout; no external image/OCR transmission added |
 
 ## Synthetic fixture inventory
@@ -44,8 +44,8 @@ meeting has no weekday ground truth, so its missing meeting fields are excluded
 from accuracy denominators. A blurry-image failure is reported rather than
 treated as a successful extraction.
 
-The Xcode 27 iPhone 18 Pro simulator run at
-<https://github.com/GuilhermeDLM/Maroon-Compass/actions/runs/36222218656>
+The Xcode 27 simulator run at
+<https://github.com/GuilhermeDLM/Maroon-Compass/actions/runs/36222628435>
 passed 36/36 tests. The five synthetic Vision/OCR evaluations reported:
 
 | Field | Correct / expected |
@@ -59,8 +59,10 @@ passed 36/36 tests. The five synthetic Vision/OCR evaluations reported:
 | Building | 10/10 |
 | Room | 7/10 |
 
-No fixture produced an extra course or meeting. One dark-layout title differed;
-three `1O9` room readings differed from the visible synthetic ground truth.
+No fixture produced an extra course or meeting. The dark-layout title
+`Engineering Lab I` was read as `Engineering Lab |`; three visible `1O9`
+rooms were read as `109`. There were no blank expected fields in the scored
+set, and the cropped missing-weekday row was excluded from the denominator.
 These are **field mismatches**, not successful guesses. The review UI displays
 the selected image above editable room and title fields so the student can
 correct them. The fixture set is small and synthetic; these scores do not
@@ -78,10 +80,14 @@ is unchanged and does not run without Auth/configuration.
 ## Evidence still required
 
 - The full 36/36 schedule suite and unsigned simulator Release build passed on
-  Xcode 27 in the linked run. The compiled empty import sheet launched on an
-  iPhone 18 Pro simulator; light/dark screenshots were inspected. The blank
-  course error and save footer were visible. A clearer disabled-button label
-  was added after this screenshot and needs the next run's visual check.
+  Xcode 27 at source/workflow commit `78723e0` in the linked run.
+  The compiled empty import sheet launched on an iPhone 18 Pro in light/dark,
+  an iPhone 17e, and an iPad mini. All four screenshots in
+  <https://github.com/GuilhermeDLM/Maroon-Compass/actions/runs/36222628435/artifacts/10899916521>
+  were inspected. The inline missing-course error and visibly disabled save
+  row appeared on both iPhones. The iPad uses a native centered sheet; its
+  lower save row is below the visible fold and needs an interaction check for
+  scrolling.
 - Exercise actual editing, replacement confirmation, keyboard, VoiceOver,
   Dynamic Type, and iPad layout on a reachable simulator/device.
 - On a reachable iPhone, test a redacted real schedule image with Apple
