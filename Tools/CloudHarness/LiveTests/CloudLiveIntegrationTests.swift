@@ -15,6 +15,10 @@ final class CloudLiveIntegrationTests: XCTestCase {
     private struct Live {
         let configuration: SupabaseConfiguration
         let adminKey: String
+
+        /// Legacy `service_role` JWTs also go in `Authorization`; `sb_secret_…` keys are not JWTs
+        /// and go only in `apikey` (the same rule as the delete-account function).
+        var adminBearer: String? { adminKey.split(separator: ".").count == 3 ? adminKey : nil }
     }
 
     @MainActor
@@ -64,7 +68,7 @@ final class CloudLiveIntegrationTests: XCTestCase {
         let email = "maroon-live-\(UUID().uuidString.lowercased())@example.invalid"
         let password = "Live-\(UUID().uuidString)-Aa1"
         let (status, body) = try await request(
-            live, "auth/v1/admin/users", method: "POST", key: live.adminKey, bearer: live.adminKey,
+            live, "auth/v1/admin/users", method: "POST", key: live.adminKey, bearer: live.adminBearer,
             body: ["email": email, "password": password, "email_confirm": true]
         )
         XCTAssertEqual(status, 200)
@@ -96,7 +100,7 @@ final class CloudLiveIntegrationTests: XCTestCase {
         var total = 0
         for table in ["semesters", "courses", "course_meetings", "course_events"] {
             let (status, body) = try await request(
-                live, "rest/v1/\(table)", method: "GET", key: live.adminKey, bearer: live.adminKey,
+                live, "rest/v1/\(table)", method: "GET", key: live.adminKey, bearer: live.adminBearer,
                 query: [URLQueryItem(name: "user_id", value: "eq.\(user.uuidString.lowercased())"),
                         URLQueryItem(name: "select", value: "id")]
             )
