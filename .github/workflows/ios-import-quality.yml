@@ -2,7 +2,7 @@ name: iOS import quality
 
 on:
   push:
-    branches: [gpt/schedule-import-quality-20260926]
+    branches: [gpt/schedule-import-quality-20260926, codex/integrated-google-schedule-20260926]
   workflow_dispatch:
 
 permissions:
