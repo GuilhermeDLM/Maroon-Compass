@@ -51,7 +51,6 @@ final class CloudAccountModel {
 
     let isConfigured: Bool
     let allowsDevelopmentSessions: Bool
-    let signInWithAppleEnabled: Bool
 
     @ObservationIgnored private let sessions: CloudSessionManager?
     @ObservationIgnored private let sync: CloudScheduleSync?
@@ -59,7 +58,6 @@ final class CloudAccountModel {
     init(services: CloudServices?, local: any LocalScheduleAccess, stateStore: any CloudSyncStateStore) {
         isConfigured = services != nil
         allowsDevelopmentSessions = services?.configuration.allowsDevelopmentSessions ?? false
-        signInWithAppleEnabled = services?.configuration.signInWithAppleEnabled ?? false
         sessions = services?.sessions
         sync = services.map {
             CloudScheduleSync(sessions: $0.sessions, repository: $0.repository, local: local, store: stateStore)
@@ -90,8 +88,22 @@ final class CloudAccountModel {
         await run { sync, user in try await sync.refresh(for: user) }
     }
 
-    func signInWithApple(identityToken: String, rawNonce: String) async {
-        await signIn { try await $0.signInWithApple(identityToken: identityToken, rawNonce: rawNonce) }
+    /// Google sign-in. `authenticate` presents the system web-authentication session for the
+    /// authorize URL and returns the callback URL; it throws `CancellationError` when the person
+    /// closes the sheet, which leaves everything unchanged without an error message.
+    func signInWithGoogle(authenticate: @MainActor (URL) async throws -> URL) async {
+        guard let sessions, !isWorking else { return }
+        let request = sessions.makeGoogleSignInRequest()
+        let callbackURL: URL
+        do {
+            callbackURL = try await authenticate(request.authorizeURL)
+        } catch is CancellationError {
+            return
+        } catch {
+            notice = CloudNotice(message: CloudAuthError.signInRejected.localizedDescription, isError: true)
+            return
+        }
+        await signIn { try await $0.completeGoogleSignIn(callbackURL: callbackURL, request: request) }
     }
 
     func startDevelopmentSession() async {
@@ -177,6 +189,8 @@ final class CloudAccountModel {
             notice = nil
             isWorking = false
             await refresh()
+        } catch CloudAuthError.signInCancelled {
+            isWorking = false
         } catch {
             isWorking = false
             handle(error)
@@ -199,7 +213,8 @@ final class CloudAccountModel {
         } catch {
             handle(error)
             // Re-read the situation after a conflict so the screen shows the latest choice.
-            if let syncError = error as? CloudSyncError, syncError == .changedElsewhere {
+            let conflicts: [CloudScheduleError] = [.versionConflict, .scheduleExists, .scheduleMissing]
+            if (error as? CloudSyncError) == .changedElsewhere || conflicts.contains(where: { $0 == error as? CloudScheduleError }) {
                 overview = try? await sync.refresh(for: user)
             }
         }

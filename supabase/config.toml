@@ -28,8 +28,11 @@ enabled = true
 port = 54323
 api_url = "http://127.0.0.1"
 
+# Local mail catcher. The live harness reads magic-link emails here to exercise the same PKCE
+# code exchange the Google flow uses.
 [local_smtp]
-enabled = false
+enabled = true
+port = 54324
 
 [storage]
 # Schedule photos and OCR text never leave the device, so no storage buckets exist.
@@ -44,12 +47,13 @@ enabled = false
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
-additional_redirect_urls = []
+# The app's OAuth callback. Supabase Auth only redirects to allow-listed URLs.
+additional_redirect_urls = ["marooncompass://auth/callback"]
 # Access tokens expire after one hour; the app refreshes them from its Keychain session.
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
-# Required so a first Sign in with Apple can create the account.
+# Required so a first Google sign-in can create the account.
 enable_signup = true
 # LOCAL DEVELOPMENT ONLY. Anonymous sessions are labeled in the app as non-restorable and are
 # compiled into Debug builds only. Keep anonymous sign-ins disabled on any hosted project that
@@ -66,8 +70,8 @@ token_refresh = 150
 
 [auth.email]
 # The app offers no email sign-in UI. The local provider is enabled only so the integration harness
-# can create restorable password identities that stand in for a returning Sign in with Apple user
-# (same token, refresh, restore, and deletion code paths). Hosted projects need not enable it.
+# can create restorable identities that stand in for a returning Google user (same PKCE exchange,
+# token, refresh, restore, and deletion code paths). Hosted projects need not enable it.
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
@@ -75,16 +79,21 @@ enable_confirmations = false
 [auth.sms]
 enable_signup = false
 
-# Native Sign in with Apple uses the id_token grant. client_id must list the app bundle identifier.
-# It cannot be exercised locally without an Apple-issued identity token; enable it on the hosted
-# project once the Sign in with Apple capability is provisioned for this bundle identifier.
+# Google sign-in (user decision, 2026-09-26): OAuth with PKCE through a system web-authentication
+# session, returning to marooncompass://auth/callback. Scopes are limited to openid, email, and
+# profile. The client ID and secret come from a Google Cloud "Web application" OAuth client whose
+# authorized redirect URI is <API URL>/auth/v1/callback. Supply both through the environment;
+# never commit the secret. Placeholders are fine for local work that does not reach Google.
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET)"
+redirect_uri = ""
+skip_nonce_check = false
+
+# Sign in with Apple is not used: the current Personal Team cannot provision it.
 [auth.external.apple]
 enabled = false
-client_id = "com.guilhermemachado.MaroonCompass"
-secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
-redirect_uri = ""
-url = ""
-skip_nonce_check = false
 
 [edge_runtime]
 enabled = true

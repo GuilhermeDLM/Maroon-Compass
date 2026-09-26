@@ -8,8 +8,7 @@ enum CloudFixtures {
     static let configuration = SupabaseConfiguration(
         projectURL: URL(string: "https://example-project.supabase.co")!,
         publishableKey: "sb_publishable_test-key",
-        allowsDevelopmentSessions: true,
-        signInWithAppleEnabled: true
+        allowsDevelopmentSessions: true
     )!
 
     /// The verified schedule bundled with the app, as the sync layer sees it.
@@ -130,6 +129,7 @@ final class FakeSupabase: HTTPTransport, @unchecked Sendable {
     private var accessTokens: [String: (user: UUID, expires: Date)] = [:]
     private var refreshTokens: [String: UUID] = [:]
     private var anonymousUsers: Set<UUID> = []
+    private var authorizationCodes: [String: String] = [:]
     private var deletedUsers: Set<UUID> = []
     private var tokenCounter = 0
     private var _now = Date(timeIntervalSince1970: 1_790_000_000)
@@ -137,7 +137,21 @@ final class FakeSupabase: HTTPTransport, @unchecked Sendable {
     private var _dropNextResponse = false
     private var _log: [String] = []
 
-    let appleUser = UUID(uuidString: "A0000000-0000-0000-0000-00000000A001")!
+    let googleUser = UUID(uuidString: "A0000000-0000-0000-0000-00000000A001")!
+
+    /// Plays the browser leg: Supabase Auth, after Google consent, redirects to the app with a
+    /// one-time code bound to the request's PKCE challenge.
+    func callbackURL(completing authorizeURL: URL) -> URL {
+        let query = URLComponents(url: authorizeURL, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let challenge = query.first { $0.name == "code_challenge" }?.value ?? ""
+        let code = lock.withLock { () -> String in
+            tokenCounter += 1
+            let code = "auth-code-\(tokenCounter)"
+            authorizationCodes[code] = challenge
+            return code
+        }
+        return URL(string: "marooncompass://auth/callback?code=\(code)")!
+    }
 
     var now: Date {
         get { lock.withLock { _now } }
@@ -211,14 +225,20 @@ final class FakeSupabase: HTTPTransport, @unchecked Sendable {
         func queryValue(_ name: String) -> String? { query.first { $0.name == name }?.value }
 
         switch path {
-        case "/auth/v1/token" where queryValue("grant_type") == "id_token":
-            return (200, sessionJSON(issue(for: appleUser, lifetime: 3_600), provider: "apple"))
+        case "/auth/v1/token" where queryValue("grant_type") == "pkce":
+            // One-time code, and SHA-256(verifier) must equal the challenge from the authorize URL.
+            guard let code = json["auth_code"] as? String, let verifier = json["code_verifier"] as? String,
+                  let challenge = authorizationCodes.removeValue(forKey: code),
+                  PKCE.challenge(for: verifier) == challenge else {
+                return (400, ["error_code": "bad_code_verifier"])
+            }
+            return (200, sessionJSON(issue(for: googleUser, lifetime: 3_600), provider: "google"))
         case "/auth/v1/token" where queryValue("grant_type") == "refresh_token":
             guard let token = json["refresh_token"] as? String, let user = refreshTokens.removeValue(forKey: token),
                   !deletedUsers.contains(user) else {
                 return (400, ["error_code": "refresh_token_not_found"])
             }
-            return (200, sessionJSON(issue(for: user, lifetime: 3_600), provider: "apple"))
+            return (200, sessionJSON(issue(for: user, lifetime: 3_600), provider: "google"))
         case "/auth/v1/signup":
             let user = UUID()
             anonymousUsers.insert(user)

@@ -8,6 +8,7 @@
 #   MC_LIVE_SUPABASE_URL=http://127.0.0.1:54321 \
 #   MC_LIVE_PUBLISHABLE_KEY=sb_publishable_... \
 #   MC_LIVE_SECRET_KEY=sb_secret_... \
+#   MC_LIVE_MAILPIT_URL=http://127.0.0.1:54324 \
 #   Tools/CloudHarness/run.sh                       # plus live tests (local `supabase start` only)
 #
 # MC_LIVE_SECRET_KEY is the stack's admin key, used only by the tests to create and delete
@@ -68,5 +69,5 @@ SWIFT
 
 docker run --rm --network host \
   -v "$WORK":/work -w /work \
-  -e MC_LIVE_SUPABASE_URL -e MC_LIVE_PUBLISHABLE_KEY -e MC_LIVE_SECRET_KEY -e MC_LIVE_DISPOSABLE_PROJECT \
+  -e MC_LIVE_SUPABASE_URL -e MC_LIVE_PUBLISHABLE_KEY -e MC_LIVE_SECRET_KEY -e MC_LIVE_DISPOSABLE_PROJECT -e MC_LIVE_MAILPIT_URL \
   "$IMAGE" swift test ${MC_HARNESS_FILTER:+--filter "$MC_HARNESS_FILTER"} "$@"

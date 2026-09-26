@@ -13,16 +13,13 @@ struct SupabaseConfiguration: Sendable, Equatable {
     let publishableKey: String
     /// Anonymous, non-restorable development sessions. Honored only in Debug builds.
     let allowsDevelopmentSessions: Bool
-    /// Enable only after the Sign in with Apple capability is provisioned for this bundle ID.
-    let signInWithAppleEnabled: Bool
 
     static let resourceName = "SupabaseConfig"
 
     init?(
         projectURL: URL,
         publishableKey: String,
-        allowsDevelopmentSessions: Bool = false,
-        signInWithAppleEnabled: Bool = false
+        allowsDevelopmentSessions: Bool = false
     ) {
         let key = publishableKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard Self.isAcceptableProjectURL(projectURL), Self.isPublishableKey(key) else { return nil }
@@ -33,7 +30,6 @@ struct SupabaseConfiguration: Sendable, Equatable {
         #else
         self.allowsDevelopmentSessions = false
         #endif
-        self.signInWithAppleEnabled = signInWithAppleEnabled
     }
 
     static func fromBundle(_ bundle: Bundle = .main) -> Self? {
@@ -42,7 +38,7 @@ struct SupabaseConfiguration: Sendable, Equatable {
            let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
             return from(values)
         }
-        // Earlier builds documented these Info.plist keys; keep reading them.
+        // Info.plist keys filled from the MCSUPABASE_URL / MCSUPABASE_PUBLISHABLE_KEY build settings.
         guard let rawURL = bundle.object(forInfoDictionaryKey: "MCSupabaseURL") as? String,
               let key = bundle.object(forInfoDictionaryKey: "MCSupabasePublishableKey") as? String else { return nil }
         return from(["ProjectURL": rawURL, "PublishableKey": key])
@@ -55,8 +51,7 @@ struct SupabaseConfiguration: Sendable, Equatable {
         return Self(
             projectURL: url,
             publishableKey: key,
-            allowsDevelopmentSessions: values["AllowDevelopmentSessions"] as? Bool ?? false,
-            signInWithAppleEnabled: values["SignInWithAppleEnabled"] as? Bool ?? false
+            allowsDevelopmentSessions: values["AllowDevelopmentSessions"] as? Bool ?? false
         )
     }
 

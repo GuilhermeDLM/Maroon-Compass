@@ -3,12 +3,12 @@ import XCTest
 
 final class CloudSyncTests: XCTestCase {
     private func user(_ fake: FakeSupabase) -> AuthUser {
-        AuthUser(id: fake.appleUser, isAnonymous: false, provider: nil)
+        AuthUser(id: fake.googleUser, isAnonymous: false, provider: nil)
     }
 
     @MainActor
     private func signedInDevice(_ fake: FakeSupabase, local: ImportedScheduleBundle? = nil) -> SimulatedDevice {
-        SimulatedDevice(fake: fake, local: local, session: fake.session(for: fake.appleUser))
+        SimulatedDevice(fake: fake, local: local, session: fake.session(for: fake.googleUser))
     }
 
     @MainActor
@@ -150,7 +150,7 @@ final class CloudSyncTests: XCTestCase {
         } catch {
             XCTAssertEqual(error as? CloudScheduleError, .offline)
         }
-        XCTAssertEqual(phone.stateStore.state.pendingUploadUserID, fake.appleUser)
+        XCTAssertEqual(phone.stateStore.state.pendingUploadUserID, fake.googleUser)
 
         fake.isOffline = false
         let overview = try await phone.sync.refresh(for: user(fake))
@@ -214,7 +214,7 @@ final class CloudSyncTests: XCTestCase {
         guard case .upToDate(let v1) = try await phone.sync.uploadLocalChanges(for: user(fake)).state else {
             return XCTFail("expected upload")
         }
-        fake.serverWrite(v1.semesterID, user: fake.appleUser,
+        fake.serverWrite(v1.semesterID, user: fake.googleUser,
                          snapshot: try CloudScheduleSnapshot(bundle: CloudFixtures.reviewedPhotoBundle(room: "5"), fallbackTerm: ScheduleSeed.term))
         do {
             _ = try await phone.sync.deleteCloudCopy(v1, for: user(fake))
@@ -311,7 +311,7 @@ final class CloudSyncTests: XCTestCase {
         let phone = signedInDevice(fake, local: CloudFixtures.reviewedPhotoBundle())
         let model = phone.makeModel()
         await model.load()
-        fake.revokeAllTokens(for: fake.appleUser)
+        fake.revokeAllTokens(for: fake.googleUser)
 
         await model.refresh()
         XCTAssertEqual(model.account, .signedOut)
@@ -334,6 +334,60 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertNil(try phone.sessionStore.load())
         XCTAssertNil(phone.stateStore.state.link)
         XCTAssertEqual(phone.local.imported?.courses, CloudFixtures.reviewedPhotoBundle().courses)
+    }
+
+    @MainActor
+    func testANewTermGetsItsOwnCloudCopyInsteadOfOverwritingTheOldOne() async throws {
+        let fake = FakeSupabase()
+        let phone = signedInDevice(fake, local: CloudFixtures.reviewedPhotoBundle())
+        guard case .upToDate(let fall) = try await phone.sync.uploadLocalChanges(for: user(fake)).state else {
+            return XCTFail("expected the fall backup")
+        }
+        let spring = ImportedScheduleBundle(
+            sourceName: "Reviewed photo import", importedAt: Date(timeIntervalSince1970: 1_800_000_000),
+            term: Term(institution: "Texas A&M University", campus: "College Station", name: "Spring 2027",
+                       firstClassDate: "2027-01-19", lastClassDate: "2027-05-04", finalsStartDate: nil,
+                       finalsEndDate: nil, timeZoneIdentifier: "America/Chicago"),
+            courses: CloudFixtures.reviewedPhotoBundle().courses,
+            patterns: CloudFixtures.reviewedPhotoBundle().patterns,
+            oneTimeEvents: []
+        )
+        phone.local.imported = spring
+
+        let overview = try await phone.sync.refresh(for: user(fake))
+        XCTAssertEqual(overview.state, .noCloudCopy)
+        XCTAssertEqual(overview.otherSemesters.map(\.semesterID), [fall.semesterID])
+
+        guard case .upToDate(let springCopy) = try await phone.sync.uploadLocalChanges(for: user(fake)).state else {
+            return XCTFail("expected a spring backup")
+        }
+        XCTAssertNotEqual(springCopy.semesterID, fall.semesterID)
+        XCTAssertEqual(fake.semesterCount, 2)
+        XCTAssertEqual(fake.row(fall.semesterID)?.version, 1, "the fall copy was not touched")
+        XCTAssertEqual(fake.row(fall.semesterID)?.snapshot.semester.firstClassDate, "2026-08-24")
+    }
+
+    @MainActor
+    func testGoogleSignInFromTheModelThenCancellationLeavesNoError() async throws {
+        let fake = FakeSupabase()
+        let phone = SimulatedDevice(fake: fake, local: CloudFixtures.reviewedPhotoBundle())
+        let model = phone.makeModel()
+        await model.load()
+        XCTAssertEqual(model.account, .signedOut)
+
+        await model.signInWithGoogle { _ in throw CancellationError() }
+        XCTAssertEqual(model.account, .signedOut)
+        XCTAssertNil(model.notice, "closing the sign-in sheet is not an error")
+
+        await model.signInWithGoogle { url in URL(string: "marooncompass://auth/callback?error=access_denied")! }
+        XCTAssertEqual(model.account, .signedOut)
+        XCTAssertNil(model.notice, "declining on the consent screen is not an error")
+
+        await model.signInWithGoogle { url in fake.callbackURL(completing: url) }
+        guard case .signedIn(let user) = model.account else { return XCTFail("\(model.account)") }
+        XCTAssertEqual(user.id, fake.googleUser)
+        XCTAssertEqual(model.overview?.state, .noCloudCopy, "signing in never uploads by itself")
+        XCTAssertEqual(fake.count("POST /rest/v1/rpc/replace_schedule_snapshot"), 0)
     }
 
     @MainActor

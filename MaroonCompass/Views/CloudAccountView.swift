@@ -1,5 +1,4 @@
 import AuthenticationServices
-import CryptoKit
 import SwiftUI
 
 /// Optional account and cloud backup for the confirmed class schedule. Everything else in the
@@ -100,9 +99,8 @@ private enum PendingCloudAction: Identifiable, Sendable {
 
 private struct CloudAccountContent: View {
     @Bindable var model: CloudAccountModel
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
     @State private var pendingAction: PendingCloudAction?
-    @State private var appleNonce: String?
 
     var body: some View {
         List {
@@ -168,25 +166,18 @@ private struct CloudAccountContent: View {
         Section {
             Text("Back up your confirmed class schedule and restore it on another iPhone or iPad. An account is optional; everything works on this device without one.")
                 .font(.subheadline)
-            if model.signInWithAppleEnabled {
-                SignInWithAppleButton(.signIn) { request in
-                    let nonce = AppleSignInNonce.make()
-                    appleNonce = nonce.raw
-                    request.requestedScopes = [.email]
-                    request.nonce = nonce.hashed
-                } onCompletion: { result in
-                    handleAppleSignIn(result)
-                }
-                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                .frame(height: 48)
-                .disabled(model.isWorking)
-            } else {
-                Label("Sign in with Apple needs its capability on an eligible Apple Developer team. This build can’t offer it yet.", systemImage: "person.badge.key")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            Button {
+                Task { await signInWithGoogle() }
+            } label: {
+                Label("Continue with Google", systemImage: "person.crop.circle.badge.checkmark")
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.borderedProminent)
+            .disabled(model.isWorking)
         } header: {
             Text("Cloud backup")
+        } footer: {
+            Text("Google shares your name, email address, and profile photo with the account service. Maroon Compass never requests Gmail or Google Calendar access.")
         }
 
         #if DEBUG
@@ -215,7 +206,7 @@ private struct CloudAccountContent: View {
                 Label("Development session — not restorable", systemImage: "hammer.fill")
                     .foregroundStyle(.orange)
             } else {
-                Label("Signed in with Apple", systemImage: "person.crop.circle.badge.checkmark")
+                Label("Signed in with Google", systemImage: "person.crop.circle.badge.checkmark")
             }
         }
 
@@ -343,37 +334,20 @@ private struct CloudAccountContent: View {
         }
     }
 
-    private func handleAppleSignIn(_ result: Result<ASAuthorization, any Error>) {
-        let nonce = appleNonce
-        appleNonce = nil
-        switch result {
-        case .success(let authorization):
-            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
-                  let tokenData = credential.identityToken,
-                  let identityToken = String(data: tokenData, encoding: .utf8),
-                  let nonce else {
-                model.notice = CloudNotice(message: "Sign in with Apple didn’t return a usable credential. Nothing changed.", isError: true)
-                return
+    /// Opens Supabase Auth's Google flow in an ephemeral system browser session (no cookies
+    /// shared with Safari) and returns the `marooncompass://auth/callback` URL.
+    private func signInWithGoogle() async {
+        let session = webAuthenticationSession
+        await model.signInWithGoogle { url in
+            do {
+                return try await session.authenticate(
+                    using: url,
+                    callbackURLScheme: OAuthSignInRequest.callbackScheme,
+                    preferredBrowserSession: .ephemeral
+                )
+            } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+                throw CancellationError()
             }
-            Task { await model.signInWithApple(identityToken: identityToken, rawNonce: nonce) }
-        case .failure(let error):
-            if let authorizationError = error as? ASAuthorizationError, authorizationError.code == .canceled { return }
-            model.notice = CloudNotice(message: "Sign in with Apple didn’t complete. Nothing changed.", isError: true)
         }
-    }
-}
-
-/// Supabase verifies that SHA-256(raw nonce) matches the nonce inside Apple's identity token,
-/// which binds the token to this sign-in attempt.
-enum AppleSignInNonce {
-    static func make() -> (raw: String, hashed: String) {
-        var generator = SystemRandomNumberGenerator()
-        let raw = (0..<32)
-            .map { _ in String(format: "%02x", UInt8.random(in: .min ... .max, using: &generator)) }
-            .joined()
-        let hashed = SHA256.hash(data: Data(raw.utf8))
-            .map { String(format: "%02x", $0) }
-            .joined()
-        return (raw, hashed)
     }
 }

@@ -23,9 +23,12 @@ actor CloudSessionManager {
         return session?.user
     }
 
-    func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthUser {
-        guard auth.configuration.signInWithAppleEnabled else { throw CloudAuthError.appleSignInUnavailable }
-        return try adopt(await auth.signInWithApple(identityToken: identityToken, rawNonce: rawNonce))
+    nonisolated func makeGoogleSignInRequest() -> OAuthSignInRequest {
+        auth.makeGoogleSignInRequest()
+    }
+
+    func completeGoogleSignIn(callbackURL: URL, request: OAuthSignInRequest) async throws -> AuthUser {
+        try adopt(await auth.completeOAuthSignIn(callbackURL: callbackURL, request: request))
     }
 
     func startDevelopmentSession() async throws -> AuthUser {

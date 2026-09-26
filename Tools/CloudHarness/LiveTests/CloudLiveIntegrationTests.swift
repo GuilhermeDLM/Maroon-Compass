@@ -9,7 +9,7 @@ import XCTest
 /// repository, sync coordinator, and account model) against a real Supabase stack.
 ///
 /// Only a local `supabase start` stack or a disposable development project is allowed: the
-/// tests create users with an admin key and delete them. Password identities stand in for a returning Sign in with Apple user;
+/// tests create users with an admin key and delete them. Password identities stand in for a returning Google user;
 /// every code path after the token grant is the same.
 final class CloudLiveIntegrationTests: XCTestCase {
     private struct Live {
@@ -31,7 +31,7 @@ final class CloudLiveIntegrationTests: XCTestCase {
             throw XCTSkip("Live tests run only against a local stack or a disposable project (MC_LIVE_DISPOSABLE_PROJECT=yes).")
         }
         let configuration = try XCTUnwrap(SupabaseConfiguration(
-            projectURL: url, publishableKey: key, allowsDevelopmentSessions: true, signInWithAppleEnabled: true
+            projectURL: url, publishableKey: key, allowsDevelopmentSessions: true
         ))
         return Live(configuration: configuration, adminKey: admin)
     }
@@ -344,6 +344,122 @@ final class CloudLiveIntegrationTests: XCTestCase {
         await model.deleteAccount()
         let value7 = try await ownedRowCount(live, anonymous.id)
         XCTAssertEqual(value7, 0)
+    }
+}
+
+extension CloudLiveIntegrationTests {
+    /// Status and Location of a request without following redirects.
+    @MainActor
+    private func redirect(_ request: URLRequest) async throws -> (Int, String?) {
+        let session = URLSession(configuration: .ephemeral, delegate: NoRedirects(), delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+        let (_, response) = try await session.data(for: request)
+        let http = try XCTUnwrap(response as? HTTPURLResponse)
+        return (http.statusCode, http.value(forHTTPHeaderField: "Location"))
+    }
+
+    /// The app's Google authorize URL, sent to real Supabase Auth, must lead to Google's consent
+    /// screen asking only for identity scopes. Google itself is not contacted beyond discovery.
+    @MainActor
+    func testGoogleAuthorizeURLLeadsToGoogleWithIdentityScopesOnly() async throws {
+        let live = try live()
+        let client = SupabaseAuthClient(configuration: live.configuration, transport: URLSessionTransport())
+        let request = client.makeGoogleSignInRequest()
+        let (status, location) = try await redirect(URLRequest(url: request.authorizeURL))
+        guard (300...399).contains(status), let location, let google = URLComponents(string: location) else {
+            throw XCTSkip("Supabase Auth did not redirect to Google (HTTP \(status)); enable [auth.external.google] and allow Auth to reach accounts.google.com.")
+        }
+        XCTAssertEqual(google.host, "accounts.google.com")
+        let query = Dictionary((google.queryItems ?? []).map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { first, _ in first })
+        // Form encoding: spaces arrive as "+". Supabase adds its default "email profile" to ours.
+        let scopes = Set((query["scope"] ?? "").split(whereSeparator: { $0 == " " || $0 == "+" }).map(String.init))
+        XCTAssertEqual(scopes, ["openid", "email", "profile"])
+        XCTAssertEqual(query["response_type"], "code")
+        XCTAssertEqual(query["redirect_uri"], live.configuration.endpoint("auth/v1/callback").absoluteString)
+        XCTAssertNotNil(query["state"], "Supabase Auth keeps the PKCE flow state server-side")
+        XCTAssertFalse(location.contains(request.codeVerifier))
+    }
+
+    /// Everything after Google: Supabase Auth redirects to the app's callback with a one-time
+    /// code, and the app exchanges it with its PKCE verifier. The magic-link PKCE flow ends in
+    /// the same callback and exchange, so it stands in for Google's consent step.
+    @MainActor
+    func testCallbackCodeExchangeAgainstRealAuth() async throws {
+        let live = try live()
+        guard let mailpit = ProcessInfo.processInfo.environment["MC_LIVE_MAILPIT_URL"].flatMap(URL.init(string:)) else {
+            throw XCTSkip("Set MC_LIVE_MAILPIT_URL (for example http://127.0.0.1:54324) to test the PKCE callback exchange.")
+        }
+        let email = "maroon-pkce-\(UUID().uuidString.lowercased())@example.invalid"
+        let phone = device(live, session: nil, local: CloudFixtures.reviewedPhotoBundle())
+        let signIn = phone.services.sessions.makeGoogleSignInRequest()
+        let challenge = PKCE.challenge(for: signIn.codeVerifier)
+
+        let (otpStatus, _) = try await request(
+            live, "auth/v1/otp", method: "POST", key: live.configuration.publishableKey,
+            query: [URLQueryItem(name: "redirect_to", value: OAuthSignInRequest.redirectURL.absoluteString)],
+            body: ["email": email, "create_user": true, "code_challenge": challenge, "code_challenge_method": "s256"]
+        )
+        XCTAssertEqual(otpStatus, 200)
+
+        var link: URL?
+        for _ in 0..<20 where link == nil {
+            var search = URLComponents(url: mailpit.appendingPathComponent("api/v1/search"), resolvingAgainstBaseURL: false)!
+            search.queryItems = [URLQueryItem(name: "query", value: "to:\(email)")]
+            let (listData, _) = try await URLSessionTransport().send(URLRequest(url: search.url!))
+            if let id = ((try JSONSerialization.jsonObject(with: listData) as? [String: Any])?["messages"] as? [[String: Any]])?.first?["ID"] as? String {
+                let (messageData, _) = try await URLSessionTransport().send(URLRequest(url: mailpit.appendingPathComponent("api/v1/message/\(id)")))
+                let message = try JSONSerialization.jsonObject(with: messageData) as? [String: Any]
+                let text = (message?["Text"] as? String ?? "") + (message?["HTML"] as? String ?? "")
+                if let range = text.range(of: #"https?://[^\s"<>]+/auth/v1/verify\?[^\s"<>]+"#, options: .regularExpression) {
+                    link = URL(string: String(text[range]).replacingOccurrences(of: "&amp;", with: "&"))
+                }
+            } else {
+                try await Task.sleep(nanoseconds: 250_000_000)
+            }
+        }
+        let verifyURL = try XCTUnwrap(link, "no magic-link email arrived")
+        let (status, location) = try await redirect(URLRequest(url: verifyURL))
+        XCTAssertTrue((300...399).contains(status))
+        let callback = try XCTUnwrap(location.flatMap(URL.init(string:)))
+        XCTAssertEqual(callback.scheme, "marooncompass", "Auth accepted the allow-listed app callback")
+        XCTAssertEqual(callback.host, "auth")
+        XCTAssertEqual(callback.path, "/callback")
+
+        // An intercepted code is useless without this attempt's verifier.
+        let other = phone.services.sessions.makeGoogleSignInRequest()
+        do {
+            _ = try await phone.services.sessions.completeGoogleSignIn(callbackURL: callback, request: other)
+            XCTFail("a different verifier must be rejected")
+        } catch {
+            XCTAssertEqual(error as? CloudAuthError, .signInRejected)
+        }
+
+        let user = try await phone.services.sessions.completeGoogleSignIn(callbackURL: callback, request: signIn)
+        XCTAssertFalse(user.isAnonymous)
+        XCTAssertNotNil(try phone.sessionStore.load(), "the session is stored after the exchange")
+        guard case .upToDate = try await phone.sync.uploadLocalChanges(for: user).state else {
+            return XCTFail("the exchanged session cannot back up")
+        }
+
+        do {
+            _ = try await phone.services.sessions.completeGoogleSignIn(callbackURL: callback, request: signIn)
+            XCTFail("a code is single-use")
+        } catch {
+            XCTAssertEqual(error as? CloudAuthError, .signInRejected)
+        }
+
+        let model = phone.makeModel()
+        await model.load()
+        await model.deleteAccount()
+        let remaining = try await ownedRowCount(live, user.id)
+        XCTAssertEqual(remaining, 0)
+    }
+}
+
+private final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
     }
 }
 

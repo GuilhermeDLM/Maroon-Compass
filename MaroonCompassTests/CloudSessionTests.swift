@@ -13,7 +13,7 @@ final class CloudSessionTests: XCTestCase {
     func testSessionTextNeverContainsTokens() {
         let session = AuthSession(
             accessToken: "eyJ.secret-access.token", refreshToken: "secret-refresh-token",
-            expiresAt: Date(), user: AuthUser(id: UUID(), isAnonymous: false, provider: "apple")
+            expiresAt: Date(), user: AuthUser(id: UUID(), isAnonymous: false, provider: "google")
         )
         var dumped = ""
         dump(session, to: &dumped)
@@ -45,17 +45,17 @@ final class CloudSessionTests: XCTestCase {
 
     func testConfigurationReadsPlistValues() {
         let configuration = SupabaseConfiguration.from([
-            "ProjectURL": "https://abc.supabase.co", "PublishableKey": "sb_publishable_abc",
-            "SignInWithAppleEnabled": true
+            "ProjectURL": "https://abc.supabase.co", "PublishableKey": "sb_publishable_abc"
         ])
-        XCTAssertEqual(configuration?.signInWithAppleEnabled, true)
+        XCTAssertEqual(configuration?.projectURL.host, "abc.supabase.co")
         XCTAssertEqual(configuration?.allowsDevelopmentSessions, false)
+        XCTAssertNil(SupabaseConfiguration.from(["ProjectURL": "", "PublishableKey": ""]), "empty build settings mean local mode")
         XCTAssertNil(SupabaseConfiguration.from(["ProjectURL": "https://abc.supabase.co"]))
     }
 
     func testConcurrentCallersShareOneRefresh() async throws {
         let fake = FakeSupabase()
-        let expired = fake.session(for: fake.appleUser, lifetime: 30)
+        let expired = fake.session(for: fake.googleUser, lifetime: 30)
         let (sessions, store) = manager(fake, session: expired)
 
         let tokens = try await withThrowingTaskGroup(of: String.self) { group in
@@ -70,8 +70,8 @@ final class CloudSessionTests: XCTestCase {
 
     func testRevokedRefreshTokenSignsOutWithoutRetrying() async throws {
         let fake = FakeSupabase()
-        let session = fake.session(for: fake.appleUser, lifetime: 10)
-        fake.revokeAllTokens(for: fake.appleUser)
+        let session = fake.session(for: fake.googleUser, lifetime: 10)
+        fake.revokeAllTokens(for: fake.googleUser)
         let (sessions, store) = manager(fake, session: session)
 
         do {
@@ -87,7 +87,7 @@ final class CloudSessionTests: XCTestCase {
 
     func testOfflineRefreshKeepsTheSession() async throws {
         let fake = FakeSupabase()
-        let session = fake.session(for: fake.appleUser, lifetime: 10)
+        let session = fake.session(for: fake.googleUser, lifetime: 10)
         let (sessions, store) = manager(fake, session: session)
         fake.isOffline = true
 
@@ -98,7 +98,7 @@ final class CloudSessionTests: XCTestCase {
             XCTAssertEqual(error as? CloudAuthError, .offline)
         }
         let user = await sessions.currentUser()
-        XCTAssertEqual(user?.id, fake.appleUser)
+        XCTAssertEqual(user?.id, fake.googleUser)
         XCTAssertEqual(try store.load(), session)
 
         fake.isOffline = false
@@ -108,7 +108,7 @@ final class CloudSessionTests: XCTestCase {
 
     func testRejectedTokenIsRefreshedOnceThenRetried() async throws {
         let fake = FakeSupabase()
-        let (sessions, _) = manager(fake, session: fake.session(for: fake.appleUser))
+        let (sessions, _) = manager(fake, session: fake.session(for: fake.googleUser))
         fake.expireAllAccessTokens()
         let repository = SupabaseScheduleRepository(configuration: CloudFixtures.configuration, transport: fake)
 
@@ -120,7 +120,7 @@ final class CloudSessionTests: XCTestCase {
 
     func testSignOutClearsTheDeviceEvenWhenOffline() async throws {
         let fake = FakeSupabase()
-        let (sessions, store) = manager(fake, session: fake.session(for: fake.appleUser))
+        let (sessions, store) = manager(fake, session: fake.session(for: fake.googleUser))
         fake.isOffline = true
         let revoked = await sessions.signOut()
         XCTAssertFalse(revoked)
@@ -131,7 +131,7 @@ final class CloudSessionTests: XCTestCase {
 
     func testSignOutRevokesTheRefreshToken() async throws {
         let fake = FakeSupabase()
-        let session = fake.session(for: fake.appleUser)
+        let session = fake.session(for: fake.googleUser)
         let (sessions, _) = manager(fake, session: session)
         let revoked = await sessions.signOut()
         XCTAssertTrue(revoked)
@@ -166,27 +166,96 @@ final class CloudSessionTests: XCTestCase {
         }
     }
 
-    func testAppleSignInRequiresTheCapabilityFlag() async throws {
-        let fake = FakeSupabase()
-        let disabled = SupabaseConfiguration(projectURL: CloudFixtures.configuration.projectURL, publishableKey: "sb_publishable_x")!
-        let (sessions, _) = manager(fake, session: nil, configuration: disabled)
-        do {
-            _ = try await sessions.signInWithApple(identityToken: "token", rawNonce: "nonce")
-            XCTFail("expected appleSignInUnavailable")
-        } catch {
-            XCTAssertEqual(error as? CloudAuthError, .appleSignInUnavailable)
+    func testSHA256AndPKCEMatchPublishedVectors() {
+        func hex(_ data: Data) -> String { data.map { String(format: "%02x", $0) }.joined() }
+        let vectors: [(String, String)] = [
+            ("", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+            ("abc", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"),
+            ("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"),
+            (String(repeating: "a", count: 55), "9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318"),
+            (String(repeating: "a", count: 56), "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a"),
+            (String(repeating: "a", count: 63), "7d3e74a05d7db15bce4ad9ec0658ea98e3f06eeecf16b4c6fff2da457ddc2f34"),
+            (String(repeating: "a", count: 64), "ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb"),
+            (String(repeating: "a", count: 65), "635361c48bb9eab14198e76ea8ab7f1a41685d6ad62aa9146d301d4f17eb0ae0"),
+            (String(repeating: "a", count: 119), "31eba51c313a5c08226adf18d4a359cfdfd8d2e816b13f4af952f7ea6584dcfb"),
+            (String(repeating: "a", count: 120), "2f3d335432c70b580af0e8e1b3674a7c020d683aa5f73aaaedfdc55af904c21c")
+        ]
+        for (message, digest) in vectors {
+            XCTAssertEqual(hex(PKCE.sha256(Data(message.utf8))), digest, "length \(message.count)")
         }
-        XCTAssertTrue(fake.log.isEmpty, "no request is sent")
+        // RFC 7636, Appendix B.
+        XCTAssertEqual(PKCE.challenge(for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+                       "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+    }
 
-        let (enabled, store) = manager(fake, session: nil)
-        let user = try await enabled.signInWithApple(identityToken: "token", rawNonce: "nonce")
-        XCTAssertEqual(user.id, fake.appleUser)
-        XCTAssertEqual(try store.load()?.user.id, fake.appleUser)
+    func testVerifiersAreRandomAndWellFormed() {
+        let first = PKCE.makeVerifier()
+        let second = PKCE.makeVerifier()
+        XCTAssertNotEqual(first, second)
+        XCTAssertEqual(first.count, 64)
+        let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        XCTAssertTrue(first.unicodeScalars.allSatisfy(unreserved.contains))
+    }
+
+    func testGoogleRequestAsksOnlyForIdentity() throws {
+        let client = SupabaseAuthClient(configuration: CloudFixtures.configuration, transport: FakeSupabase())
+        let request = client.makeGoogleSignInRequest()
+        let components = try XCTUnwrap(URLComponents(url: request.authorizeURL, resolvingAgainstBaseURL: false))
+        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        XCTAssertEqual(components.scheme, "https")
+        XCTAssertEqual(components.host, "example-project.supabase.co")
+        XCTAssertEqual(components.path, "/auth/v1/authorize")
+        XCTAssertEqual(query["provider"], "google")
+        XCTAssertEqual(query["redirect_to"], "marooncompass://auth/callback")
+        XCTAssertEqual(query["scopes"], "openid email profile")
+        XCTAssertEqual(query["code_challenge_method"], "s256")
+        XCTAssertEqual(query["code_challenge"], PKCE.challenge(for: request.codeVerifier))
+        XCTAssertFalse(request.authorizeURL.absoluteString.contains(request.codeVerifier), "the verifier never leaves the app before the exchange")
+        XCTAssertFalse(request.authorizeURL.absoluteString.localizedCaseInsensitiveContains("gmail"))
+        XCTAssertFalse(request.authorizeURL.absoluteString.localizedCaseInsensitiveContains("calendar"))
+    }
+
+    func testCallbackParsing() throws {
+        func code(_ text: String) -> Result<String, CloudAuthError> {
+            Result { try SupabaseAuthClient.authorizationCode(from: URL(string: text)!) }.mapError { $0 as! CloudAuthError }
+        }
+        XCTAssertEqual(try code("marooncompass://auth/callback?code=abc-123").get(), "abc-123")
+        XCTAssertEqual(code("marooncompass://auth/callback?error=access_denied&error_description=cancel"), .failure(.signInCancelled))
+        XCTAssertEqual(code("marooncompass://auth/callback#error=server_error&error_description=x"), .failure(.signInRejected))
+        XCTAssertEqual(code("marooncompass://auth/callback"), .failure(.invalidResponse))
+        XCTAssertEqual(code("marooncompass://schedule/callback?code=abc"), .failure(.invalidResponse))
+        XCTAssertEqual(code("othersapp://auth/callback?code=abc"), .failure(.invalidResponse))
+        XCTAssertEqual(code("https://example.com/auth/callback?code=abc"), .failure(.invalidResponse))
+    }
+
+    func testGoogleSignInExchangesTheCodeWithItsOwnVerifier() async throws {
+        let fake = FakeSupabase()
+        let (sessions, store) = manager(fake, session: nil)
+        let request = sessions.makeGoogleSignInRequest()
+        let user = try await sessions.completeGoogleSignIn(callbackURL: fake.callbackURL(completing: request.authorizeURL), request: request)
+        XCTAssertEqual(user.id, fake.googleUser)
+        XCTAssertFalse(user.isAnonymous)
+        XCTAssertEqual(try store.load()?.user.id, fake.googleUser)
+    }
+
+    func testAnInterceptedCodeCannotBeUsedWithoutTheVerifier() async throws {
+        let fake = FakeSupabase()
+        let (sessions, store) = manager(fake, session: nil)
+        let victim = sessions.makeGoogleSignInRequest()
+        let attacker = sessions.makeGoogleSignInRequest()
+        let stolenCallback = fake.callbackURL(completing: victim.authorizeURL)
+        do {
+            _ = try await sessions.completeGoogleSignIn(callbackURL: stolenCallback, request: attacker)
+            XCTFail("a code bound to another challenge must be rejected")
+        } catch {
+            XCTAssertEqual(error as? CloudAuthError, .signInRejected)
+        }
+        XCTAssertNil(try store.load())
     }
 
     func testAccountDeletionClearsTheSession() async throws {
         let fake = FakeSupabase()
-        let (sessions, store) = manager(fake, session: fake.session(for: fake.appleUser))
+        let (sessions, store) = manager(fake, session: fake.session(for: fake.googleUser))
         try await sessions.deleteAccount()
         XCTAssertNil(try store.load())
         XCTAssertEqual(fake.count("POST /functions/v1/delete-account"), 1)
