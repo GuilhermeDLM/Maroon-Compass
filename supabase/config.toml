@@ -1,0 +1,99 @@
+# Local development configuration for the Supabase CLI (`supabase start`, `supabase test db`).
+# It contains no secrets. Hosted project settings are configured in the Supabase dashboard;
+# see docs/SUPABASE_SETUP.md. Never put a service-role key, JWT secret, or Apple private key here.
+project_id = "maroon-compass"
+
+[api]
+enabled = true
+port = 54321
+# Only the public schema is exposed. GraphQL is not used by the app.
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+# No seed data: schedules are user data and are never bundled into the database.
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[local_smtp]
+enabled = false
+
+[storage]
+# Schedule photos and OCR text never leave the device, so no storage buckets exist.
+enabled = false
+
+[realtime]
+enabled = false
+
+[analytics]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = []
+# Access tokens expire after one hour; the app refreshes them from its Keychain session.
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# Required so a first Sign in with Apple can create the account.
+enable_signup = true
+# LOCAL DEVELOPMENT ONLY. Anonymous sessions are labeled in the app as non-restorable and are
+# compiled into Debug builds only. Keep anonymous sign-ins disabled on any hosted project that
+# real schedules depend on.
+enable_anonymous_sign_ins = true
+enable_manual_linking = false
+minimum_password_length = 12
+password_requirements = "lower_upper_letters_digits"
+
+[auth.rate_limit]
+anonymous_users = 30
+sign_in_sign_ups = 30
+token_refresh = 150
+
+[auth.email]
+# The app offers no email sign-in UI. The local provider is enabled only so the integration harness
+# can create restorable password identities that stand in for a returning Sign in with Apple user
+# (same token, refresh, restore, and deletion code paths). Hosted projects need not enable it.
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.sms]
+enable_signup = false
+
+# Native Sign in with Apple uses the id_token grant. client_id must list the app bundle identifier.
+# It cannot be exercised locally without an Apple-issued identity token; enable it on the hosted
+# project once the Sign in with Apple capability is provisioned for this bundle identifier.
+[auth.external.apple]
+enabled = false
+client_id = "com.guilhermemachado.MaroonCompass"
+secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
+redirect_uri = ""
+url = ""
+skip_nonce_check = false
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+inspector_port = 8083
+deno_version = 2
+
+# Account deletion. The gateway requires a valid user JWT and the function verifies it again
+# with Auth before calling the admin API with the service-role key from the function environment.
+[functions.delete-account]
+enabled = true
+verify_jwt = true

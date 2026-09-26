@@ -1,0 +1,8 @@
+# Supabase CLI local state (project refs, pooler URLs, branch metadata). Never commit.
+.branches
+.temp
+.env
+.env.*
+# Local signing keys or function secrets, if ever generated.
+signing_keys.json
+functions/.env

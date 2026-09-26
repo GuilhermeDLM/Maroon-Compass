@@ -27,6 +27,9 @@ create table public.courses (
     color_hex text,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
+    -- Target of the course_meetings composite foreign key. Without it this migration fails
+    -- with SQLSTATE 42830, so no database can contain an earlier version of this file.
+    constraint course_owner_key unique (id, user_id),
     constraint course_semester_owner foreign key (semester_id, user_id)
         references public.semesters (id, user_id) on delete cascade
 );
