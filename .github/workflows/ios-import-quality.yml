@@ -1,0 +1,50 @@
+name: iOS import quality
+
+on:
+  push:
+    branches: [gpt/schedule-import-quality-20260926]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulator:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode and simulator
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available
+      - name: Full schedule suite
+        run: |
+          xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass \
+            -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' \
+            -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO test
+      - name: Simulator Release build
+        run: |
+          xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass \
+            -configuration Release -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+      - name: Capture compiled import sheet
+        run: |
+          SIM_ID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for group in d.values() for x in group if x["name"] == "iPhone 18 Pro" and x["isAvailable"]))')"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl install "$SIM_ID" "$PWD/DerivedData/Build/Products/Debug-iphonesimulator/MaroonCompass.app"
+          xcrun simctl ui "$SIM_ID" appearance light
+          xcrun simctl launch "$SIM_ID" com.guilhermemachado.MaroonCompass -hasCompletedOnboarding YES -UIImportSchedule
+          sleep 5
+          xcrun simctl io "$SIM_ID" screenshot import-light.png
+          xcrun simctl ui "$SIM_ID" appearance dark
+          sleep 2
+          xcrun simctl io "$SIM_ID" screenshot import-dark.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-import-screen
+          path: |
+            import-light.png
+            import-dark.png
+          retention-days: 7
