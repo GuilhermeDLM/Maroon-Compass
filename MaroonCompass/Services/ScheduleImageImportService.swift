@@ -50,18 +50,22 @@ struct ScheduleImageImportService: Sendable {
         try Task.checkCancellation()
         guard !lines.isEmpty else { throw ScheduleImageImportError.noText }
         let text = lines.map(\.text).joined(separator: "\n")
+        let ocrDraft = Self.parseRecognizedText(lines, currentTerm: currentTerm)
 
         var draft: ScheduleDraft?
         var usedIntelligence = false
         #if canImport(FoundationModels)
         if useAppleIntelligence, #available(iOS 26.0, *), SystemLanguageModel.default.isAvailable {
             do {
-                draft = try await interpretWithAppleIntelligence(
+                let suggestion = try await interpretWithAppleIntelligence(
                     imageData: imageData,
                     recognizedText: text,
                     currentTerm: currentTerm
                 )
-                usedIntelligence = draft != nil
+                if let suggestion {
+                    draft = Self.reconcile(suggestion, with: ocrDraft)
+                    usedIntelligence = true
+                }
             } catch {
                 // OCR and manual review remain available when model generation fails.
             }
@@ -69,7 +73,7 @@ struct ScheduleImageImportService: Sendable {
         #endif
 
         if draft == nil {
-            draft = Self.parseRecognizedText(lines, currentTerm: currentTerm)
+            draft = ocrDraft
             draft?.notes.append("Apple Intelligence was unavailable or could not interpret this image. Review the OCR-based draft carefully.")
         }
         try Task.checkCancellation()
@@ -101,6 +105,73 @@ struct ScheduleImageImportService: Sendable {
             OCRLine(text: text, x: 0, y: Double(textLines.count - index))
         }
         return parseRecognizedText(lines, currentTerm: currentTerm)
+    }
+
+    /// OCR anchors course identity. A model can suggest missing fields, but it cannot add a
+    /// duplicate or a course that was not supported by a readable course code in the image.
+    static func reconcile(_ suggestion: ScheduleDraft, with ocr: ScheduleDraft) -> ScheduleDraft {
+        guard !ocr.courses.isEmpty else { return suggestion }
+        var result = ocr
+        var matchedSuggestions: Set<Int> = []
+        var omittedSuggestions = false
+        let ocrIdentities = ocr.courses.compactMap { courseIdentity($0.code)?.code }
+
+        for courseIndex in result.courses.indices {
+            guard let identity = courseIdentity(result.courses[courseIndex].code) else { continue }
+            let section = result.courses[courseIndex].section.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let repeatedCode = ocrIdentities.filter { $0 == identity.code }.count > 1
+            guard let suggestionIndex = suggestion.courses.indices.first(where: { index in
+                guard !matchedSuggestions.contains(index),
+                      let candidate = courseIdentity(suggestion.courses[index].code),
+                      candidate.code == identity.code else { return false }
+                let suggestedSection = suggestion.courses[index].section.isEmpty
+                    ? candidate.section
+                    : suggestion.courses[index].section.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                if repeatedCode && suggestedSection.isEmpty { return false }
+                return section.isEmpty || suggestedSection.isEmpty || section == suggestedSection
+            }) else { continue }
+
+            matchedSuggestions.insert(suggestionIndex)
+            let candidate = suggestion.courses[suggestionIndex]
+            if result.courses[courseIndex].title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                result.courses[courseIndex].title = candidate.title
+            }
+            if result.courses[courseIndex].section.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                result.courses[courseIndex].section = candidate.section.isEmpty
+                    ? courseIdentity(candidate.code)?.section ?? ""
+                    : candidate.section
+            }
+            if result.courses[courseIndex].meetings.count == candidate.meetings.count {
+                for meetingIndex in result.courses[courseIndex].meetings.indices {
+                    let suggested = candidate.meetings[meetingIndex]
+                    var meeting = result.courses[courseIndex].meetings[meetingIndex]
+                    if meeting.weekdays.isEmpty { meeting.weekdays = suggested.weekdays }
+                    if meeting.startTime.isEmpty { meeting.startTime = suggested.startTime }
+                    if meeting.endTime.isEmpty { meeting.endTime = suggested.endTime }
+                    if meeting.buildingCode.isEmpty { meeting.buildingCode = suggested.buildingCode }
+                    if meeting.room.isEmpty { meeting.room = suggested.room }
+                    result.courses[courseIndex].meetings[meetingIndex] = meeting
+                }
+            }
+        }
+
+        omittedSuggestions = matchedSuggestions.count < suggestion.courses.count
+        result.notes.append("Apple Intelligence suggested missing details. Check every class before confirming.")
+        if omittedSuggestions {
+            result.notes.append("Some AI suggestions did not match readable course codes and were left out. Check the image for missing classes.")
+        }
+        return result
+    }
+
+    private static func courseIdentity(_ raw: String) -> (code: String, section: String)? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let pattern = #"^([A-Z]{2,5})\s*[- ]?\s*(\d{3,4})(?:\s*[- ]\s*(\d{3}))?$"#
+        guard let expression = try? NSRegularExpression(pattern: pattern),
+              let match = expression.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)),
+              let subjectRange = Range(match.range(at: 1), in: trimmed),
+              let numberRange = Range(match.range(at: 2), in: trimmed) else { return nil }
+        let section = Range(match.range(at: 3), in: trimmed).map { String(trimmed[$0]) } ?? ""
+        return (String(trimmed[subjectRange]) + String(trimmed[numberRange]), section)
     }
 
     private static func parseRecognizedText(_ lines: [OCRLine], currentTerm: Term) -> ScheduleDraft {

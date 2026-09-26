@@ -229,4 +229,38 @@ final class ScheduleDraftTests: XCTestCase {
         let restored = try calendarSnapshot.makeBundle(restoredAt: Date())
         XCTAssertEqual(restored.oneTimeEvents, oldCalendar.oneTimeEvents)
     }
+
+    func testAppleIntelligenceSuggestionsCannotAddDuplicateOrUnanchoredCourses() {
+        var ocr = ScheduleDraft(termName: "Fall", firstClassDate: "2027-08-30", lastClassDate: "2027-12-10")
+        var math = ScheduleDraftCourse()
+        math.code = "MATH 251"
+        math.title = "Calculus 3"
+        math.section = "502"
+        math.meetings[0].startTime = "09:10"
+        var chemistry = ScheduleDraftCourse()
+        chemistry.code = "CHEM 117"
+        chemistry.title = "General Chemistry Laboratory"
+        chemistry.section = "541"
+        ocr.courses = [math, chemistry]
+
+        var suggestion = ocr
+        suggestion.courses[0].code = "MATH 251-502"
+        suggestion.courses[0].section = ""
+        suggestion.courses[0].meetings[0].startTime = "10:10"
+        suggestion.courses[0].meetings[0].buildingCode = "BLOC"
+        suggestion.courses[1].code = "CHEM 117-541"
+        suggestion.courses[1].section = ""
+        suggestion.courses.append(suggestion.courses[1])
+        var spurious = ScheduleDraftCourse()
+        spurious.section = "HELD"
+        suggestion.courses.append(spurious)
+
+        let result = ScheduleImageImportService.reconcile(suggestion, with: ocr)
+        XCTAssertEqual(result.courses.count, 2)
+        XCTAssertEqual(result.courses.map(\.code), ["MATH 251", "CHEM 117"])
+        XCTAssertEqual(result.courses.map(\.section), ["502", "541"])
+        XCTAssertEqual(result.courses[0].meetings[0].startTime, "09:10")
+        XCTAssertEqual(result.courses[0].meetings[0].buildingCode, "BLOC")
+        XCTAssertTrue(result.notes.contains { $0.contains("left out") })
+    }
 }
