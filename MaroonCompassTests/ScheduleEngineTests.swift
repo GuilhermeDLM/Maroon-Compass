@@ -338,4 +338,75 @@ final class ScheduleEngineTests: XCTestCase {
         store.deletePersonalBlock(block)
         XCTAssertFalse(AppStore().personalBlocks.contains(where: { $0.id == block.id }))
     }
+
+    @MainActor
+    func testEmbeddedRevisionKeepsImportedScheduleAndItsLocations() throws {
+        let suiteName = "MaroonCompassTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let importedBytes = Data(#"{"sourceName":"user schedule"}"#.utf8)
+        defaults.set(importedBytes, forKey: "importedSchedule")
+        defaults.set("previous-revision", forKey: "embeddedScheduleRevision")
+        let savedLocation = CourseLocation(
+            courseID: "IMPORTED-101",
+            feature: CampusFeature(
+                id: "tamu-building-test",
+                name: "Test building",
+                abbreviation: "TEST",
+                buildingNumber: nil,
+                address: nil,
+                coordinateValue: CoordinateValue(latitude: 30.61, longitude: -96.34),
+                category: .academic,
+                officialURL: nil,
+                sourceName: "Test fixture",
+                fetchedAt: nil
+            ),
+            room: "101"
+        )
+
+        let retained = AppStore.reconcileEmbeddedScheduleRevision(
+            defaults: defaults,
+            courseLocations: [savedLocation.courseID: savedLocation]
+        )
+
+        XCTAssertEqual(defaults.data(forKey: "importedSchedule"), importedBytes)
+        XCTAssertEqual(retained[savedLocation.courseID], savedLocation)
+        XCTAssertEqual(defaults.string(forKey: "embeddedScheduleRevision"), ScheduleSeed.revision)
+    }
+
+    @MainActor
+    func testEmbeddedRevisionPrunesOldSeedLocationsWithoutImport() throws {
+        let suiteName = "MaroonCompassTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set("previous-revision", forKey: "embeddedScheduleRevision")
+
+        let feature = CampusFeature(
+            id: "tamu-building-test",
+            name: "Test building",
+            abbreviation: "TEST",
+            buildingNumber: nil,
+            address: nil,
+            coordinateValue: CoordinateValue(latitude: 30.61, longitude: -96.34),
+            category: .academic,
+            officialURL: nil,
+            sourceName: "Test fixture",
+            fetchedAt: nil
+        )
+        let currentID = ScheduleSeed.courses[0].id
+        let locations = [
+            currentID: CourseLocation(courseID: currentID, feature: feature, room: "101"),
+            "OLD-SEED-COURSE": CourseLocation(courseID: "OLD-SEED-COURSE", feature: feature, room: "201")
+        ]
+
+        let retained = AppStore.reconcileEmbeddedScheduleRevision(defaults: defaults, courseLocations: locations)
+
+        XCTAssertEqual(Set(retained.keys), [currentID])
+        XCTAssertEqual(
+            try JSONDecoder().decode([String: CourseLocation].self, from: XCTUnwrap(defaults.data(forKey: "courseLocations"))),
+            retained
+        )
+        XCTAssertEqual(defaults.string(forKey: "embeddedScheduleRevision"), ScheduleSeed.revision)
+    }
 }
