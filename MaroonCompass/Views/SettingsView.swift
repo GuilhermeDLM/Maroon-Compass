@@ -35,6 +35,19 @@ struct SettingsView: View {
                 }
             }
 
+            Section {
+                NavigationLink {
+                    CloudAccountView()
+                } label: {
+                    Label("Account & cloud backup", systemImage: "icloud.and.arrow.up")
+                }
+                Text("Optional. The app works fully on this device without an account.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Account")
+            }
+
             Section("Personal Plan") {
                 LabeledContent("Personal blocks", value: "\(store.personalBlocks.count)")
                 Label("Weekly routines and one-time blocks are stored separately from protected class meetings", systemImage: "calendar.badge.plus")
@@ -116,8 +129,9 @@ struct SettingsView: View {
             }
 
             Section("Privacy") {
-                Label("Schedule, personal plan, locations, and favorites stay on this device", systemImage: "lock.shield.fill")
-                Label("No analytics, ads, accounts, or NetID credentials", systemImage: "hand.raised.fill")
+                Label("Personal plan, locations, reminders, and favorites stay on this device", systemImage: "lock.shield.fill")
+                Label("Your class schedule leaves this device only if you turn on cloud backup", systemImage: "icloud.slash")
+                Label("No analytics, ads, or NetID credentials; an account is optional", systemImage: "hand.raised.fill")
                 Label("Commercial places come from Apple Maps", systemImage: "map.fill")
             }
 

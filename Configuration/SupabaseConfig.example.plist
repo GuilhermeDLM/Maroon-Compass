@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Copy to MaroonCompass/SupabaseConfig.plist (git-ignored) to enable cloud backup in a local
+  build. Without that file the app runs in local mode. See docs/SUPABASE_SETUP.md.
+  (Alternatively, the MCSupabaseURL / MCSupabasePublishableKey Info.plist keys are read when
+  this file is absent.) Sign-in uses Google through Supabase Auth; no Google secret belongs here.
+
+  ProjectURL      Your Supabase project URL (HTTPS). Debug builds also accept
+                  http://127.0.0.1:54321 for a `supabase start` stack.
+  PublishableKey  The project's publishable key (sb_publishable_…) or legacy anon key.
+                  NEVER a secret/service-role key: the app refuses those.
+  AllowDevelopmentSessions true to offer anonymous, non-restorable sessions. Ignored in
+                  Release builds.
+-->
+<plist version="1.0">
+<dict>
+	<key>ProjectURL</key>
+	<string>https://YOUR-PROJECT-REF.supabase.co</string>
+	<key>PublishableKey</key>
+	<string>sb_publishable_REPLACE_ME</string>
+	<key>AllowDevelopmentSessions</key>
+	<false/>
+</dict>
+</plist>

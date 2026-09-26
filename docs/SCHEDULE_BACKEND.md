@@ -1,26 +1,64 @@
-# Schedule import and backend checkpoint
+# Schedule import and cloud backup
 
-## Current behavior
+## Local import (unchanged)
 
-The app reads a selected photo locally with Vision. Foundation Models interprets the image on supported, enabled devices; an OCR parser provides a draft elsewhere. The student reviews and edits every course and meeting before confirming. Confirmation saves the structured schedule to the existing on-device store. The image and OCR text are not persisted or uploaded.
+The app reads a selected photo locally with Vision. Foundation Models interprets the image on supported, enabled devices; an OCR parser provides a draft elsewhere. The student reviews and edits every course and meeting before confirming. Confirmation saves the structured schedule to the existing on-device store. The image and OCR text are not persisted or uploaded. Local import works without any account.
 
-`SupabaseScheduleRepository` and the SQL migration establish a cloud transport contract. They are deliberately not called from the UI yet: there is no configured Supabase project or authenticated session, and a partial sync would put local schedule fidelity at risk. Local import works without any cloud account.
+## Cloud backup model
 
-## Cloud contract
+Cloud backup is optional and local-first. The device's schedule is always the one the app uses; the cloud holds a copy only when the student asks for it. Accounts use Google sign-in through Supabase Auth (PKCE, identity scopes only; see `docs/SUPABASE_SETUP.md`); ownership is the Supabase user ID, never the email address.
 
-- `supabase/migrations/202609250001_schedule.sql` creates owner-scoped semesters, courses, and course meetings with composite owner foreign keys and RLS for SELECT, INSERT, UPDATE, and DELETE.
-- `replace_schedule_snapshot` writes one reviewed semester atomically. The caller supplies the previously read `sync_version`; stale writes fail. The RPC runs as the caller, not a service role.
-- The Swift adapter accepts only schedules that can be represented without loss. ICS recurrence exceptions, one-time events, source notes, and rich Howdy metadata currently remain local.
-- Only a Supabase publishable key may enter the app. Never ship a service-role key or store a password in source control.
+- **What is stored:** the confirmed class schedule — term, courses (including Howdy metadata), weekly meetings (including EXDATE/RDATE lists, UNTIL text, notes, rooms), and one-time events — keyed by the app's own identifiers so a restored schedule keeps building assignments and calendar-export tracking. The embedded Howdy schedule, `.ics` imports, and reviewed photo imports all round-trip without loss (tested against the real database).
+- **What is never stored:** photos, OCR text, `.ics` diagnostic properties, Personal Plan, saved places, favorites, location, reminders, manual building overrides.
+- **Schedules the cloud cannot represent** (for example a calendar that repeats an event UID, or a meeting that crosses midnight) stay local, and the account screen says why. Nothing is dropped or rewritten to make it fit. Weekday and date lists are stored sorted and de-duplicated, which does not change their meaning.
 
-## Configuration and verification still required
+## Sync rules
 
-1. Create a private Supabase project and apply the migration to a disposable development instance first.
-2. Run `supabase/tests/schedule_rls.sql` with `psql -v ON_ERROR_STOP=1` against that instance. The test writes two temporary Auth users, checks cross-user reads and writes, and rolls back. This has not been executed in this checkout because no Supabase project or PostgreSQL runtime is configured.
-3. Set `MCSupabaseURL` and `MCSupabasePublishableKey` in the app's generated Info.plist using local, uncommitted Xcode build settings. Do not use the production key in simulator test logs. The repository returns no configuration until both keys exist.
-4. Add the auth and sync UI only after the project and RLS tests work. The installed Personal Team profile currently lacks Sign in with Apple. Enable that capability under an eligible Apple Developer team before relying on native Apple sign-in. Local mode should remain the default.
-5. Exercise two-device conflict, offline retry, sign-out, account deletion, and remote restore before enabling automatic cloud sync. Do not overwrite a local schedule just because a remote copy exists.
+The device remembers the cloud version and content it last agreed with. Each refresh compares the device, that record, and the cloud:
+
+| Device changed | Cloud changed | State | What the student can do |
+| --- | --- | --- | --- |
+| no | no | Up to date | — |
+| yes | no | Local changes | Upload changes |
+| no | yes | Remote changes | Restore the cloud copy, or keep this device's schedule |
+| yes | yes | Conflict (unless both are now identical) | Restore the cloud copy, or keep this device's schedule |
+| not linked, cloud copy of this term differs | | Cloud copy available | Restore it, or replace it with this device's schedule |
+| not linked, no cloud copy of this term | | Not backed up | Back up |
+| linked, cloud copy deleted elsewhere | | Deleted | Back up again |
+
+- Nothing is overwritten automatically. Every write names the version the student reviewed; if the cloud moved on, the write fails and the screen shows the latest state.
+- Restoring saves the previous local schedule first. "Undo restore" is offered only while the local schedule is still exactly what was restored.
+- A second device with the identical schedule links silently (no write). A different schedule on a second device never creates a duplicate: the database allows one semester per term start date per account.
+- An upload that fails for connectivity is retried the next time the account screen loads or refreshes, including when the app returns to the foreground with that screen open, and only while the situation is still "not backed up" or "local changes". There is no background sync. A write whose response was lost is recognized on the next refresh instead of being sent again.
+- Signing out keeps the device's schedule and the cloud copies, and forgets sync metadata. Deleting the account deletes the Auth user and, by cascade, every cloud row; the device's schedule is not changed. Deleting the cloud copy removes only that semester, and only at the reviewed version.
+
+## Database contract
+
+See `supabase/migrations/202609260001_schedule_sync.sql`.
+
+- `replace_schedule_snapshot(p_semester_id, p_expected_version, p_snapshot)` — atomic replace; `p_expected_version` is null only when creating. Returns `{semester_id, sync_version, updated_at}`. Errors: 409 `schedule_version_conflict` / `schedule_exists` / `schedule_missing`; 400 `invalid_snapshot` / `semester_limit_reached`; 403 `authentication_required`.
+- `get_schedule_snapshot(p_semester_id)` — the full snapshot from one database snapshot, or null.
+- `list_schedule_semesters()` — summaries with version, update time, and course count.
+- `DELETE /rest/v1/semesters?id=eq.<id>&sync_version=eq.<v>` with `Prefer: return=representation` — versioned deletion under RLS.
+
+Snapshot format 1 uses snake_case keys matching `CloudScheduleSnapshot` in `MaroonCompass/Services/SupabaseScheduleRepository.swift`. Times are `HH:mm`, dates `yyyy-MM-dd`, timestamps UTC with milliseconds.
+
+## Code map
+
+| Concern | File |
+| --- | --- |
+| Configuration, transport, formats | `MaroonCompass/Services/Cloud/CloudConfiguration.swift` |
+| Auth client (Google PKCE, refresh, sign-out, deletion), session model, errors | `MaroonCompass/Services/Cloud/CloudAuth.swift` |
+| Session state and refresh | `MaroonCompass/Services/Cloud/CloudSessionManager.swift` |
+| Keychain storage, app services | `MaroonCompass/Services/Cloud/KeychainSessionStore.swift` |
+| Snapshot and REST repository | `MaroonCompass/Services/SupabaseScheduleRepository.swift` |
+| Sync decisions and actions | `MaroonCompass/Services/Cloud/CloudScheduleSync.swift` |
+| Bridge to `AppStore` | `MaroonCompass/Services/Cloud/AppStoreScheduleAccess.swift` |
+| UI state | `MaroonCompass/Services/Cloud/CloudAccountModel.swift` |
+| Screen | `MaroonCompass/Views/CloudAccountView.swift` (linked from Settings) |
+
+Setup and verification commands are in `docs/SUPABASE_SETUP.md`; the security review is in `docs/BACKEND_SECURITY_REVIEW.md`.
 
 ## Model handoff
 
-One integrator should own `main` and merge tested branches. A second model can own Supabase project setup, RLS execution, and authentication on a separate branch. A third can evaluate screenshot layouts and extraction quality with redacted or synthetic schedules, without editing the same Swift files. Share the branch name, base commit, tests, and unresolved gates at every handoff.
+One integrator owns `main` and merges tested branches. The backend branch owns `supabase/**`, the cloud Swift files above, their tests, and these documents. Screenshot extraction work should avoid those files; the backend branch does not edit `ScheduleImageImportService.swift`, `ScheduleDraft.swift`, or `ScheduleImportView.swift`. Share the branch name, base commit, tests, and unresolved gates at every handoff.

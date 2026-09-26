@@ -13,3 +13,6 @@ tmp/
 xcuserdata/
 Screenshots/*.png
 Tools/RenewalConfig.local.zsh
+
+# Local Supabase client configuration (project URL + publishable key). Never commit.
+MaroonCompass/SupabaseConfig.plist
