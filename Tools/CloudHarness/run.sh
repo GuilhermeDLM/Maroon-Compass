@@ -10,8 +10,9 @@
 #   MC_LIVE_SECRET_KEY=sb_secret_... \
 #   Tools/CloudHarness/run.sh                       # plus live tests (local `supabase start` only)
 #
-# MC_LIVE_SECRET_KEY is the local CLI stack's admin key, used only by the tests to create and
-# expire disposable users. Never point the live tests at a production project.
+# MC_LIVE_SECRET_KEY is the stack's admin key, used only by the tests to create and delete
+# disposable users. A hosted URL additionally requires MC_LIVE_DISPOSABLE_PROJECT=yes. Never
+# point the live tests at a project that holds real schedules.
 #
 # Requires Docker with the official `swift:6.2-noble` image. Sources are copied into a scratch
 # package; nothing is written to the repository.
@@ -67,5 +68,5 @@ SWIFT
 
 docker run --rm --network host \
   -v "$WORK":/work -w /work \
-  -e MC_LIVE_SUPABASE_URL -e MC_LIVE_PUBLISHABLE_KEY -e MC_LIVE_SECRET_KEY \
+  -e MC_LIVE_SUPABASE_URL -e MC_LIVE_PUBLISHABLE_KEY -e MC_LIVE_SECRET_KEY -e MC_LIVE_DISPOSABLE_PROJECT \
   "$IMAGE" swift test ${MC_HARNESS_FILTER:+--filter "$MC_HARNESS_FILTER"} "$@"

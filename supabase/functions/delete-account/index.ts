@@ -27,6 +27,14 @@ function bearerToken(request: Request): string | null {
   return match ? match[1] : null;
 }
 
+// Legacy API keys are JWTs and may also be sent as a bearer token. The newer sb_secret_ keys
+// belong only in the apikey header.
+function adminHeaders(key: string): Record<string, string> {
+  const headers: Record<string, string> = { apikey: key, "Content-Type": "application/json" };
+  if (key.split(".").length === 3) headers.Authorization = `Bearer ${key}`;
+  return headers;
+}
+
 function isUUID(value: unknown): value is string {
   return typeof value === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -79,11 +87,7 @@ export async function handleDeleteAccount(
 
   const deleteResponse = await fetcher(`${url}/auth/v1/admin/users/${user.id}`, {
     method: "DELETE",
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: adminHeaders(serviceRoleKey),
     body: JSON.stringify({ should_soft_delete: false }),
   });
   if (deleteResponse.status === 404) {
@@ -99,7 +103,7 @@ export async function handleDeleteAccount(
 Deno.serve((request) =>
   handleDeleteAccount(request, {
     url: Deno.env.get("SUPABASE_URL"),
-    anonKey: Deno.env.get("SUPABASE_ANON_KEY"),
-    serviceRoleKey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    anonKey: Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY"),
+    serviceRoleKey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SECRET_KEY"),
   })
 );

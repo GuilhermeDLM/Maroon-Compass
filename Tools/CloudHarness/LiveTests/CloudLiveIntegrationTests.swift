@@ -8,8 +8,8 @@ import XCTest
 /// Runs the app's real cloud code (URLSession transport, Auth client, session manager,
 /// repository, sync coordinator, and account model) against a real Supabase stack.
 ///
-/// Only a local `supabase start` stack is allowed: the tests create users with the local admin
-/// key and delete them. Password identities stand in for a returning Sign in with Apple user;
+/// Only a local `supabase start` stack or a disposable development project is allowed: the
+/// tests create users with an admin key and delete them. Password identities stand in for a returning Sign in with Apple user;
 /// every code path after the token grant is the same.
 final class CloudLiveIntegrationTests: XCTestCase {
     private struct Live {
@@ -24,8 +24,11 @@ final class CloudLiveIntegrationTests: XCTestCase {
               let key = environment["MC_LIVE_PUBLISHABLE_KEY"], let admin = environment["MC_LIVE_SECRET_KEY"] else {
             throw XCTSkip("Set MC_LIVE_SUPABASE_URL, MC_LIVE_PUBLISHABLE_KEY, and MC_LIVE_SECRET_KEY to run live tests.")
         }
-        guard ["127.0.0.1", "localhost"].contains(url.host ?? "") else {
-            throw XCTSkip("Live tests only run against a local Supabase CLI stack.")
+        // The tests create and delete users with an admin key. Only a local CLI stack, or a
+        // hosted project explicitly declared disposable, may be used.
+        let isLocal = ["127.0.0.1", "localhost"].contains(url.host ?? "")
+        guard isLocal || environment["MC_LIVE_DISPOSABLE_PROJECT"] == "yes" else {
+            throw XCTSkip("Live tests run only against a local stack or a disposable project (MC_LIVE_DISPOSABLE_PROJECT=yes).")
         }
         let configuration = try XCTUnwrap(SupabaseConfiguration(
             projectURL: url, publishableKey: key, allowsDevelopmentSessions: true, signInWithAppleEnabled: true
