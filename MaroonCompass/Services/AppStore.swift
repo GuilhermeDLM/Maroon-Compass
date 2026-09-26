@@ -56,10 +56,13 @@ final class AppStore {
     private let notificationService = NotificationService()
     private let calendarExportService = CalendarExportService()
     private let importService = ICSImportService()
-    private let defaults = UserDefaults.standard
+    private let scheduleHistoryStore: ScheduleHistoryStore
+    private let defaults: UserDefaults
     private static let embeddedScheduleRevisionKey = "embeddedScheduleRevision"
 
-    init() {
+    init(defaults: UserDefaults = .standard, scheduleHistoryStore: ScheduleHistoryStore = ScheduleHistoryStore()) {
+        self.defaults = defaults
+        self.scheduleHistoryStore = scheduleHistoryStore
         hasCompletedOnboarding = defaults.bool(forKey: "hasCompletedOnboarding")
         remindersEnabled = defaults.bool(forKey: "remindersEnabled")
         reminderLeadMinutes = defaults.object(forKey: "reminderLeadMinutes") == nil ? 15 : defaults.integer(forKey: "reminderLeadMinutes")
@@ -381,8 +384,30 @@ final class AppStore {
     }
 
     func saveImportedSchedule(_ bundle: ImportedScheduleBundle) throws {
+        try applyImportedSchedule(bundle, archivingCurrentAs: .replacedByImport)
+    }
+
+    func savedScheduleVersions() throws -> [SavedScheduleVersion] {
+        try scheduleHistoryStore.versions()
+    }
+
+    func restoreSavedScheduleVersion(id: UUID) throws {
+        guard let version = try scheduleHistoryStore.version(id: id) else {
+            throw ScheduleHistoryError.versionNotFound
+        }
+        try applyImportedSchedule(version.bundle, archivingCurrentAs: .restoredEarlierVersion)
+    }
+
+    private func applyImportedSchedule(
+        _ bundle: ImportedScheduleBundle,
+        archivingCurrentAs reason: ScheduleHistoryReason
+    ) throws {
         let encoded = try JSONEncoder().encode(bundle)
         let term = bundle.term ?? ScheduleSeed.term
+        if let previousData = defaults.data(forKey: "importedSchedule") {
+            let previous = try JSONDecoder().decode(ImportedScheduleBundle.self, from: previousData)
+            try scheduleHistoryStore.save(previous, reason: reason)
+        }
         defaults.set(encoded, forKey: "importedSchedule")
         engine = ScheduleEngine(
             term: term,
@@ -392,9 +417,14 @@ final class AppStore {
             exceptions: Self.exceptions(for: term)
         )
         resolveVerifiedMeetingLocations()
+        refreshNotificationsAfterScheduleChange()
     }
 
-    func restoreEmbeddedSchedule() {
+    func restoreEmbeddedSchedule() throws {
+        if let previousData = defaults.data(forKey: "importedSchedule") {
+            let previous = try JSONDecoder().decode(ImportedScheduleBundle.self, from: previousData)
+            try scheduleHistoryStore.save(previous, reason: .restoredEmbedded)
+        }
         engine = ScheduleEngine(
             term: ScheduleSeed.term,
             courses: ScheduleSeed.courses,
@@ -405,6 +435,13 @@ final class AppStore {
         resolveVerifiedMeetingLocations()
         defaults.removeObject(forKey: "importedSchedule")
         defaults.set(ScheduleSeed.revision, forKey: Self.embeddedScheduleRevisionKey)
+        refreshNotificationsAfterScheduleChange()
+    }
+
+    private func refreshNotificationsAfterScheduleChange() {
+        notificationService.clearLeaveReminders()
+        guard remindersEnabled else { return }
+        Task { await notificationService.reconcile(engine: engine, leadMinutes: reminderLeadMinutes) }
     }
 
     func personalOccurrences(on date: Date) -> [PersonalBlockOccurrence] {
