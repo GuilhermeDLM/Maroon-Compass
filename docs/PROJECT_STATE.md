@@ -1,6 +1,6 @@
 # Project state
 
-Updated: 2026-09-25
+Updated: 2026-09-26
 
 ## Current state
 
@@ -29,10 +29,31 @@ Verification: 29/29 iPhone 17 Pro simulator tests passed after import changes. T
 
 Work occurred in an isolated copy at `/Users/guilhermemachado/Documents/Codex/2026-09-25/also-just-for-future-reference-a/work/maroon-compass-next`. The original Documents source and the renewal mirror were not overwritten by this branch. GitHub is the durable source; terminal Git lacks private-repo credentials, so this branch was updated through the GitHub connector.
 
+## Backend, authentication, and sync branch checkpoint (2026-09-26)
+
+Branch `claude/maroon-compass-backend-auth-c1m1yh`, based on PR #2 head `16249d96b56e876dd518491eb51d1bfd1379f7fa`. It targets `codex/schedule-import-and-backend-20260925` until PR #1 and PR #2 merge. It does not edit the photo-import files owned by the extraction work. Details: `docs/SCHEDULE_BACKEND.md`, `docs/SUPABASE_SETUP.md`, `docs/BACKEND_SECURITY_REVIEW.md`.
+
+What changed:
+
+- `202609250001` could not be applied (missing unique key for a composite FK); one constraint was added. A forward migration `202609260001` makes the cloud copy lossless for the embedded Howdy schedule, `.ics` imports, and reviewed photo imports; removes client write privileges so every write is version-checked; returns conflicts as HTTP 409; and adds atomic read/list functions.
+- A `delete-account` Edge Function deletes the verified caller's Auth user; schedule rows cascade.
+- Swift: Supabase Auth client, Keychain session store, session manager with rotation-safe refresh, lossless snapshot, local-first sync coordinator (explicit backup/restore/replace, conflict states, undo, versioned cloud deletion, offline retry, lost-response recognition, one cloud copy per term), and an account screen linked from Settings. Following the user's decision recorded in `AGENTS.md`, sign-in is **Google through Supabase Auth**: authorization code with PKCE in an ephemeral system web-authentication session, callback `marooncompass://auth/callback`, scopes `openid email profile` only. The earlier Sign in with Apple path was removed. A labeled anonymous development session exists only in Debug builds. Without Supabase configuration (`MaroonCompass/SupabaseConfig.plist`, or the `MCSupabaseURL`/`MCSupabasePublishableKey` Info.plist keys) the app stays in local mode.
+- Reconciliation: Codex draft PR #5 (`codex/google-auth-20260926`) implements Google sign-in separately with the supabase-swift SDK, an app Info.plist, and project-file changes. This branch reaches the same endpoints with no SDK or project-file change and connects sign-in to sync and deletion. The integrator should keep one account view and one session store; both branches use the same callback, scopes, and Info.plist key names.
+
+Verification, by gate:
+
+- **Real Supabase software, local only:** Supabase CLI 2.118.0 stack in Docker (Postgres 17.6, Auth, PostgREST, Edge Runtime). `supabase test db`: 86/86 pgTAP assertions pass. `supabase db lint --level warning`: no issues. The account-deletion function was exercised over HTTP. No hosted Supabase project was created or used.
+- **Swift client on Linux:** the app's portable sources built with Swift 6.2 in language mode 6 (`Tools/CloudHarness/run.sh`). 44 unit tests pass, and 6 live scenarios pass with the real client against the local stack: lossless round trips of all three schedule shapes, returning account on a second device, conflicts and stale reviews, cross-account isolation, token expiry and server rejection, sign-out revocation, account deletion including a deleted account's still-valid token, offline retry, a development session, the Google authorize redirect (Supabase Auth sends the app's request to `accounts.google.com` with only `openid email profile`), and the PKCE callback exchange (allow-listed `marooncompass://auth/callback`, wrong verifier and replayed code rejected), using the magic-link PKCE flow in place of Google consent. In this sandbox the Auth container needed the proxy CA installed to reach Google's discovery document; that is not a repository change.
+- **Not done in this environment:** no iOS SDK build, no simulator test run (the existing 29 tests plus the new cloud tests), no signing, installation, launch, or device test. `KeychainSessionStore.swift`, `AppStoreScheduleAccess.swift`, `CloudAccountView.swift`, and the Settings hook were syntax-checked with `swiftc -parse` only.
+- **Blocked on user-only configuration:** live Google sign-in needs a Google Cloud Web OAuth client, the Supabase Google provider with that client, the Supabase callback URL in Google, and `marooncompass://auth/callback` in Supabase's redirect allow list. A hosted project needs Guilherme's Supabase account. Live Google sign-in has not been performed.
+
+No build from this branch was signed or installed; the development build on the paired iPhone and its local data were not touched.
+
 ## Next safe actions
 
-1. Create a disposable Supabase project, apply the migration, and run `supabase/tests/schedule_rls.sql`; fix any policy or RPC failures before enabling client sync.
-2. Configure only project URL and publishable key for local builds. Add Auth session handling, Sign in with Apple under an eligible team, sign-out and account deletion, and explicit restore/conflict UI. Keep local mode independent.
-3. Test image extraction on the paired iPhone with Apple Intelligence enabled and disabled, plus representative redacted schedule screenshots. Report actual runtime availability; simulator compilation does not establish it.
-4. Add a versioned local history/rollback path before enabling recurring cloud sync, then verify offline retry and two-device conflicts.
-5. The development build is now installed in place. Once the phone is unlocked, verify launch and the import screen, then test Apple Intelligence availability. If it fails, use the verified known-good ZIP for recovery and preserve the preference backup.
+1. On the Mac, build this branch for the simulator and run the full test suite (`xcodebuild … test`). Fix any iOS-SDK-only compile issues in the four Apple-platform files before merging. Reconcile with PR #5 so only one Google sign-in implementation ships.
+2. Create a disposable hosted Supabase development project, then `supabase db push`, `supabase test db --linked`, and `supabase functions deploy delete-account`; optionally run the live harness against it with `MC_LIVE_DISPOSABLE_PROJECT=yes`.
+3. Configure Google: a Web OAuth client in Google Cloud (Supabase callback as redirect URI; `openid`, `email`, `profile` only), the Supabase Google provider, and `marooncompass://auth/callback` in the redirect allow list (`docs/SUPABASE_SETUP.md`).
+4. With a local `SupabaseConfig.plist` pointing at that project, exercise the account screen in a Debug simulator build and then on the paired iPhone: Google sign-in, cancel, back up, second-device restore, conflict, undo, delete cloud copy, sign-out, delete account.
+5. Test image extraction on the paired iPhone with Apple Intelligence enabled and disabled. Report actual runtime availability; simulator compilation does not establish it.
+6. The development build is installed in place. Once the phone is unlocked, verify launch and the import screen. If it fails, use the verified known-good ZIP for recovery and preserve the preference backup.

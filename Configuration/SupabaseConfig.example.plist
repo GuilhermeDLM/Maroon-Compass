@@ -3,13 +3,13 @@
 <!--
   Copy to MaroonCompass/SupabaseConfig.plist (git-ignored) to enable cloud backup in a local
   build. Without that file the app runs in local mode. See docs/SUPABASE_SETUP.md.
+  (Alternatively, the MCSupabaseURL / MCSupabasePublishableKey Info.plist keys are read when
+  this file is absent.) Sign-in uses Google through Supabase Auth; no Google secret belongs here.
 
   ProjectURL      Your Supabase project URL (HTTPS). Debug builds also accept
                   http://127.0.0.1:54321 for a `supabase start` stack.
   PublishableKey  The project's publishable key (sb_publishable_…) or legacy anon key.
                   NEVER a secret/service-role key: the app refuses those.
-  SignInWithAppleEnabled   true only after the Sign in with Apple capability is provisioned
-                  for com.guilhermemachado.MaroonCompass and enabled in Supabase Auth.
   AllowDevelopmentSessions true to offer anonymous, non-restorable sessions. Ignored in
                   Release builds.
 -->
@@ -19,8 +19,6 @@
 	<string>https://YOUR-PROJECT-REF.supabase.co</string>
 	<key>PublishableKey</key>
 	<string>sb_publishable_REPLACE_ME</string>
-	<key>SignInWithAppleEnabled</key>
-	<false/>
 	<key>AllowDevelopmentSessions</key>
 	<false/>
 </dict>

@@ -32,7 +32,8 @@ This project intentionally targets native iOS and iPadOS, overriding the workspa
 - `Services/ICSImporter.swift`: defensive calendar parsing and recurrence normalization.
 - `Services/ScheduleImageImportService.swift`: local OCR, structured Apple Intelligence extraction, and a deterministic review fallback.
 - `Models/ScheduleDraft.swift`: editable class/meeting draft and validation before any schedule is replaced.
-- `Services/SupabaseScheduleRepository.swift`: an explicit remote snapshot transport for supported confirmed schedules; it is not active without project configuration and an authenticated session.
+- `Services/SupabaseScheduleRepository.swift`: the lossless cloud snapshot of a confirmed schedule and its versioned Supabase transport.
+- `Services/Cloud/`: optional account and cloud backup — configuration, Supabase Auth client (Google sign-in with PKCE), Keychain session storage, session refresh, local-first sync decisions, the `AppStore` bridge, and the account screen's state. Inactive unless the build bundles `SupabaseConfig.plist`.
 - `Services/CampusGISService.swift`: official building and parking ArcGIS decoding with atomic local caching.
 - `Services/PlacesSearchService.swift` and `RouteService.swift`: dynamic local search, ETA enrichment, and route calculation.
 - `Services/CalendarExportService.swift`: explicit per-course EventKit export and duplicate tracking.
@@ -41,11 +42,11 @@ This project intentionally targets native iOS and iPadOS, overriding the workspa
 - `Views/`: six-tab product UI and supporting flows; iPhone keeps Today, Schedule, Plan, and Map visible while Saved and Settings remain available under More.
 - `MaroonCompassWidget/`: App Intent-powered Home Screen and Lock Screen widgets.
 
-No third-party iOS dependencies, analytics, advertising, tracking, or NetID access are used. A Supabase schema and client transport are being added; the installed app still runs entirely in local mode until cloud configuration and authentication are verified.
+No third-party iOS dependencies, analytics, advertising, tracking, or NetID access are used. Optional cloud backup uses Supabase over plain HTTPS (`supabase/` holds the schema, tests, and account-deletion function); builds without `MaroonCompass/SupabaseConfig.plist` run entirely in local mode. See `docs/SCHEDULE_BACKEND.md` and `docs/SUPABASE_SETUP.md`.
 
 ## Data and privacy
 
-Schedule data, personal blocks, confirmed class locations, reminder preferences, export identifiers, recent searches, and favorites remain on device in the current build. Schedule screenshots and OCR text are processed locally and are never sent to the backend. Personal blocks are stored separately from the imported class schedule, so editing or deleting them cannot alter a class meeting. Campus metadata comes from public Texas A&M GIS services and is cached with its fetch date. Commercial place results and routes come from Apple Maps at runtime. Precise user location is not logged or persisted.
+Personal blocks, confirmed class locations, reminder preferences, export identifiers, recent searches, and favorites remain on device. The class schedule also stays on device unless the student signs in and backs it up; cloud backup stores only the confirmed schedule, never screenshots, OCR text, location, or the Personal Plan. Signing out keeps the device's schedule; deleting the account removes the account and every cloud copy. Schedule screenshots and OCR text are processed locally and are never sent to the backend. Personal blocks are stored separately from the imported class schedule, so editing or deleting them cannot alter a class meeting. Campus metadata comes from public Texas A&M GIS services and is cached with its fetch date. Commercial place results and routes come from Apple Maps at runtime. Precise user location is not logged or persisted.
 
 The widget deliberately uses the embedded verified Fall 2026 schedule. Imported calendar changes and manual room overrides remain private to the main app because this local build does not request an App Group entitlement.
 
@@ -69,7 +70,15 @@ xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass -destination '
 xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass -configuration Release -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-There are no third-party iOS dependencies or generated dependency state. Automated tests cover class recurrence, exceptions, source normalization, campus civil time, DST, complete Howdy metadata, personal weekly and one-time recurrence, overnight blocks, conflict detection, local persistence, schedule draft validation, and legacy decoding. `DerivedData` and local screenshots are excluded from source control.
+Backend and cloud-client checks (Docker required; see `docs/SUPABASE_SETUP.md`):
+
+```sh
+supabase start && supabase test db        # pgTAP: RLS, privileges, RPC versioning, rollback
+Tools/CloudHarness/run.sh                 # cloud Swift unit tests on Linux (Swift 6 strict concurrency)
+MC_LIVE_SUPABASE_URL=… MC_LIVE_PUBLISHABLE_KEY=… MC_LIVE_SECRET_KEY=… Tools/CloudHarness/run.sh   # plus live tests against a local stack
+```
+
+There are no third-party iOS dependencies or generated dependency state. Automated tests cover class recurrence, exceptions, source normalization, campus civil time, DST, complete Howdy metadata, personal weekly and one-time recurrence, overnight blocks, conflict detection, local persistence, schedule draft validation, legacy decoding, lossless cloud snapshots of every schedule shape, session refresh and sign-out, and local-first sync decisions. `DerivedData` and local screenshots are excluded from source control.
 
 ## Personal Team renewal
 
