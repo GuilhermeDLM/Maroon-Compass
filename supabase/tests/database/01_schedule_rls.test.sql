@@ -3,7 +3,7 @@
 begin;
 \ir 00_helpers.sql.inc
 
-select plan(46);
+select plan(47);
 
 \set user_a '''10000000-0000-0000-0000-00000000000a'''
 \set user_b '''10000000-0000-0000-0000-00000000000b'''
@@ -135,6 +135,12 @@ select is((select count(*)::int from public.semesters where user_id = :user_b)
           + (select count(*)::int from public.course_meetings where user_id = :user_b)
           + (select count(*)::int from public.course_events where user_id = :user_b), 0,
           'deleting an Auth user removes every schedule row it owned');
+
+select pg_temp.act_as(:user_b);
+select throws_ok(format($$ select public.replace_schedule_snapshot(%L, null, %L::jsonb) $$,
+                        :semester_b, pg_temp.snapshot('2027-08-30')),
+                 '28000', 'authentication_required',
+                 'a deleted account''s unexpired token cannot write (HTTP 403, not invalid input)');
 
 select * from finish();
 rollback;

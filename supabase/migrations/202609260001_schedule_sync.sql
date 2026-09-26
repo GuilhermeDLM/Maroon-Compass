@@ -244,7 +244,9 @@ declare
     v_updated_at timestamptz;
     v_detail text;
 begin
-    if v_owner is null then
+    -- A deleted account's access token stays cryptographically valid until it expires.
+    -- Report it as an authentication failure (HTTP 403), not as invalid input.
+    if v_owner is null or not exists (select 1 from auth.users u where u.id = v_owner) then
         raise exception using errcode = '28000', message = 'authentication_required';
     end if;
 
