@@ -263,6 +263,7 @@
 				DEVELOPMENT_TEAM = ASUMB3BUP7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Configuration/MaroonCompass-Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maroon Compass";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Maroon Compass uses your location only while open to estimate walking time and show useful places near you.";
@@ -274,6 +275,8 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
 				MARKETING_VERSION = 1.4;
+				MCSUPABASE_URL = "";
+				MCSUPABASE_PUBLISHABLE_KEY = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompass;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -293,6 +296,7 @@
 				DEVELOPMENT_TEAM = ASUMB3BUP7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Configuration/MaroonCompass-Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maroon Compass";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Maroon Compass uses your location only while open to estimate walking time and show useful places near you.";
@@ -304,6 +308,8 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
 				MARKETING_VERSION = 1.4;
+				MCSUPABASE_URL = "";
+				MCSUPABASE_PUBLISHABLE_KEY = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompass;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -401,6 +407,7 @@
 		MC00000000000000000000A3 /* Build configuration list for PBXNativeTarget "MaroonCompassTests" */ = {isa = XCConfigurationList; buildConfigurations = (MC0000000000000000000B05 /* Debug */, MC0000000000000000000B06 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		MC0000000000000000000113 /* Build configuration list for PBXNativeTarget "MaroonCompassWidget" */ = {isa = XCConfigurationList; buildConfigurations = (MC0000000000000000000111 /* Debug */, MC0000000000000000000112 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
+
 	};
 	rootObject = MC0000000000000000000001 /* Project object */;
 }

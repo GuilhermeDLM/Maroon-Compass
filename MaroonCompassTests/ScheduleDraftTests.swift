@@ -32,6 +32,56 @@ final class ScheduleDraftTests: XCTestCase {
         XCTAssertThrowsError(try draft.confirmedBundle(sourceName: "Test"))
     }
 
+    func testValidationKeepsFieldErrorsVisibleWithInvalidDates() {
+        var draft = ScheduleDraft(termName: "Fall", firstClassDate: "2026-02-30", lastClassDate: "2026-12-03")
+        draft.courses = [ScheduleDraftCourse()]
+
+        let messages = draft.issues.map(\.message)
+        XCTAssertTrue(messages.contains("Enter valid first and last class dates within one year (YYYY-MM-DD)."))
+        XCTAssertTrue(messages.contains("Enter a course code."))
+        XCTAssertTrue(messages.contains("Enter a course name."))
+        XCTAssertTrue(messages.contains("Select at least one weekday."))
+    }
+
+    func testNormalizedDuplicatesOverlapsAndRoomWithoutBuildingBlockSave() {
+        var draft = ScheduleDraft(termName: "Fall 2026", firstClassDate: "2026-08-24", lastClassDate: "2026-12-03")
+        var first = ScheduleDraftCourse()
+        first.code = "MATH 251"
+        first.title = "Calculus III"
+        first.section = "502"
+        first.meetings = [
+            ScheduleDraftMeeting(kind: .lecture, weekdays: [.monday], startTime: "09:30", endTime: "10:45", buildingCode: "", room: "1O9"),
+            ScheduleDraftMeeting(kind: .lecture, weekdays: [.monday], startTime: "9:30 AM", endTime: "10:45", buildingCode: "", room: "")
+        ]
+        var duplicate = ScheduleDraftCourse()
+        duplicate.code = "MATH-251"
+        duplicate.title = "Calculus III"
+        duplicate.section = "502"
+        duplicate.meetings = [ScheduleDraftMeeting(kind: .lab, weekdays: [.monday], startTime: "10:30", endTime: "11:20", buildingCode: "BLOC", room: "169")]
+        draft.courses = [first, duplicate]
+
+        let messages = draft.issues.map(\.message)
+        XCTAssertTrue(messages.contains("This course and section appear more than once."))
+        XCTAssertTrue(messages.contains("This meeting appears more than once."))
+        XCTAssertTrue(messages.contains("Add a building code for this room, or clear the room."))
+        XCTAssertTrue(messages.contains(where: { $0.contains("overlaps") }))
+        XCTAssertThrowsError(try draft.confirmedBundle(sourceName: "Test"))
+    }
+
+    func testAdjacentMeetingsDoNotConflict() {
+        var draft = ScheduleDraft(termName: "Fall 2026", firstClassDate: "2026-08-24", lastClassDate: "2026-12-03")
+        var course = ScheduleDraftCourse()
+        course.code = "ENGR 102"
+        course.title = "Engineering Lab I"
+        course.meetings = [
+            ScheduleDraftMeeting(kind: .lab, weekdays: [.monday], startTime: "17:10", endTime: "18:00"),
+            ScheduleDraftMeeting(kind: .lab, weekdays: [.monday], startTime: "18:01", endTime: "19:00")
+        ]
+        draft.courses = [course]
+        XCTAssertFalse(draft.issues.contains(where: { $0.message.contains("overlaps") }))
+        XCTAssertNoThrow(try draft.confirmedBundle(sourceName: "Test"))
+    }
+
     func testConfirmedDraftPreservesSeparateMeetingsAndUnknowns() throws {
         var draft = ScheduleDraft(
             termName: "Fall 2026",
@@ -60,7 +110,7 @@ final class ScheduleDraftTests: XCTestCase {
         XCTAssertNil(bundle.term?.finalsEndDate)
     }
 
-    func testOCRFallbackCreatesReviewableDraftWithoutInventingBuilding() {
+    func testOCRFallbackTranscribesVisibleBuildingWithoutInferringOtherFields() {
         let draft = ScheduleImageImportService.draftFromRecognizedLines(
             ["MATH 251-502 Calculus III", "Tue Thu 5:30 PM - 6:45 PM BLOC 169"],
             currentTerm: ScheduleSeed.term
@@ -71,7 +121,53 @@ final class ScheduleDraftTests: XCTestCase {
         XCTAssertEqual(draft.courses[0].meetings.count, 1)
         XCTAssertEqual(draft.courses[0].meetings[0].weekdays, [.tuesday, .thursday])
         XCTAssertEqual(draft.courses[0].meetings[0].startTime, "5:30 PM")
+        XCTAssertEqual(draft.courses[0].meetings[0].buildingCode, "BLOC")
+        XCTAssertEqual(draft.courses[0].meetings[0].room, "169")
+    }
+
+    func testSyntheticOCRTranscriptPreservesNumbersRoomsAndRepeatedCourseMeetings() {
+        let draft = ScheduleImageImportService.draftFromRecognizedLines(
+            [
+                "MATH 251-502 Calculus 3 Tue Thu 5:30 PM - 6:45 PM BLOC 1O9",
+                "CHEM 117-541 General Chemistry Laboratory",
+                "Tue LAB 11:10 AM - 2:00 PM HELD 302",
+                "MATH 251-502 Calculus 3",
+                "Wed RECITATION 09:10 - 10:00 BLOC 169",
+                "Dining hours 9:00 AM - 5:00 PM"
+            ], currentTerm: ScheduleSeed.term
+        )
+        XCTAssertEqual(draft.courses.count, 2)
+        XCTAssertEqual(draft.courses[0].title, "Calculus 3")
+        XCTAssertEqual(draft.courses[0].meetings.count, 2)
+        XCTAssertEqual(draft.courses[0].meetings[0].weekdays, [.tuesday, .thursday])
+        XCTAssertEqual(draft.courses[0].meetings[0].buildingCode, "BLOC")
+        XCTAssertEqual(draft.courses[0].meetings[0].room, "1O9")
+        XCTAssertEqual(draft.courses[0].meetings[1].kind, .recitation)
+        XCTAssertEqual(draft.courses[1].meetings.count, 1)
+        XCTAssertEqual(draft.courses[1].meetings[0].kind, .lab)
+        XCTAssertEqual(draft.courses[1].meetings[0].room, "302")
+    }
+
+    func testMissingWeekdayColumnDoesNotAttachUnrelatedTime() {
+        let draft = ScheduleImageImportService.draftFromRecognizedLines(
+            ["POLS 207-502 State and Local Government", "09:10 - 10:00", "Store hours 9:00 AM - 5:00 PM"],
+            currentTerm: ScheduleSeed.term
+        )
+        XCTAssertEqual(draft.courses.count, 1)
+        XCTAssertEqual(draft.courses[0].meetings.count, 1)
+        XCTAssertTrue(draft.courses[0].meetings[0].weekdays.isEmpty)
+        XCTAssertTrue(draft.courses[0].meetings[0].startTime.isEmpty)
+        XCTAssertFalse(draft.issues.isEmpty)
+    }
+
+    func testOCRDoesNotMistakeCRNForBuilding() {
+        let draft = ScheduleImageImportService.draftFromRecognizedLines(
+            ["CHEM 107-504 General Chemistry", "Tue Thu 08:00 - 09:15 CRN 12345"],
+            currentTerm: ScheduleSeed.term
+        )
+        XCTAssertEqual(draft.courses[0].meetings[0].weekdays, [.tuesday, .thursday])
         XCTAssertTrue(draft.courses[0].meetings[0].buildingCode.isEmpty)
+        XCTAssertTrue(draft.courses[0].meetings[0].room.isEmpty)
     }
 
     func testOldImportedBundleDecodesWithoutNewTermOrMeetingFields() throws {
@@ -98,7 +194,7 @@ final class ScheduleDraftTests: XCTestCase {
         XCTAssertEqual(decoded.patterns.first?.meetingKind, .lecture)
     }
 
-    func testCloudSnapshotAcceptsReviewedPhotoButRejectsLossyCalendarImport() throws {
+    func testCloudSnapshotPreservesReviewedPhotoAndOneTimeCalendarEvent() throws {
         var draft = ScheduleDraft(
             termName: "Fall 2027", firstClassDate: "2027-08-30", lastClassDate: "2027-12-10"
         )
@@ -112,10 +208,9 @@ final class ScheduleDraftTests: XCTestCase {
         course.meetings = [meeting]
         draft.courses = [course]
         let bundle = try draft.confirmedBundle(sourceName: "Reviewed photo")
-        let snapshot = try CloudScheduleSnapshot(semesterID: UUID(), bundle: bundle)
+        let snapshot = try CloudScheduleSnapshot(bundle: bundle, fallbackTerm: ScheduleSeed.term)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(snapshot)) as? [String: Any])
-        let courses = try XCTUnwrap(json["courses"] as? [[String: Any]])
-        let meetings = try XCTUnwrap(courses[0]["meetings"] as? [[String: Any]])
+        let meetings = try XCTUnwrap(json["meetings"] as? [[String: Any]])
         XCTAssertEqual(meetings[0]["weekdays"] as? [Int], [2, 4])
         XCTAssertEqual(meetings[0]["start_time"] as? String, "17:30")
         XCTAssertNil(meetings[0]["building_code"])
@@ -129,6 +224,43 @@ final class ScheduleDraftTests: XCTestCase {
                 endHour: 10, endMinute: 0, title: "Exam"
             )]
         )
-        XCTAssertThrowsError(try CloudScheduleSnapshot(semesterID: UUID(), bundle: oldCalendar))
+        let calendarSnapshot = try CloudScheduleSnapshot(bundle: oldCalendar, fallbackTerm: ScheduleSeed.term)
+        XCTAssertEqual(calendarSnapshot.events.count, 1)
+        let restored = try calendarSnapshot.makeBundle(restoredAt: Date())
+        XCTAssertEqual(restored.oneTimeEvents, oldCalendar.oneTimeEvents)
+    }
+
+    func testAppleIntelligenceSuggestionsCannotAddDuplicateOrUnanchoredCourses() {
+        var ocr = ScheduleDraft(termName: "Fall", firstClassDate: "2027-08-30", lastClassDate: "2027-12-10")
+        var math = ScheduleDraftCourse()
+        math.code = "MATH 251"
+        math.title = "Calculus 3"
+        math.section = "502"
+        math.meetings[0].startTime = "09:10"
+        var chemistry = ScheduleDraftCourse()
+        chemistry.code = "CHEM 117"
+        chemistry.title = "General Chemistry Laboratory"
+        chemistry.section = "541"
+        ocr.courses = [math, chemistry]
+
+        var suggestion = ocr
+        suggestion.courses[0].code = "MATH 251-502"
+        suggestion.courses[0].section = ""
+        suggestion.courses[0].meetings[0].startTime = "10:10"
+        suggestion.courses[0].meetings[0].buildingCode = "BLOC"
+        suggestion.courses[1].code = "CHEM 117-541"
+        suggestion.courses[1].section = ""
+        suggestion.courses.append(suggestion.courses[1])
+        var spurious = ScheduleDraftCourse()
+        spurious.section = "HELD"
+        suggestion.courses.append(spurious)
+
+        let result = ScheduleImageImportService.reconcile(suggestion, with: ocr)
+        XCTAssertEqual(result.courses.count, 2)
+        XCTAssertEqual(result.courses.map(\.code), ["MATH 251", "CHEM 117"])
+        XCTAssertEqual(result.courses.map(\.section), ["502", "541"])
+        XCTAssertEqual(result.courses[0].meetings[0].startTime, "09:10")
+        XCTAssertEqual(result.courses[0].meetings[0].buildingCode, "BLOC")
+        XCTAssertTrue(result.notes.contains { $0.contains("left out") })
     }
 }
