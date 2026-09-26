@@ -7,6 +7,7 @@
 
 /* Begin PBXBuildFile section */
 		MC0000000000000000000108 /* MaroonCompassWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = MC0000000000000000000101 /* MaroonCompassWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		MC0000000000000000000203 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = MC0000000000000000000202 /* Auth */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,7 +64,7 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		MC0000000000000000000051 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		MC0000000000000000000051 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (MC0000000000000000000203 /* Auth in Frameworks */, ); runOnlyForDeploymentPostprocessing = 0; };
 		MC0000000000000000000052 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		MC0000000000000000000103 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
@@ -105,7 +106,7 @@
 			dependencies = (MC0000000000000000000110 /* PBXTargetDependency */);
 			fileSystemSynchronizedGroups = (MC0000000000000000000041 /* MaroonCompass */);
 			name = MaroonCompass;
-			packageProductDependencies = ();
+			packageProductDependencies = (MC0000000000000000000202 /* Auth */, );
 			productName = MaroonCompass;
 			productReference = MC0000000000000000000031 /* MaroonCompass.app */;
 			productType = "com.apple.product-type.application";
@@ -165,6 +166,7 @@
 			knownRegions = (en, Base);
 			mainGroup = MC0000000000000000000061;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (MC0000000000000000000201 /* XCRemoteSwiftPackageReference "supabase-swift" */, );
 			preferredProjectObjectVersion = 77;
 			productRefGroup = MC0000000000000000000062 /* Products */;
 			projectDirPath = "";
@@ -263,6 +265,7 @@
 				DEVELOPMENT_TEAM = ASUMB3BUP7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Configuration/MaroonCompass-Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maroon Compass";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Maroon Compass uses your location only while open to estimate walking time and show useful places near you.";
@@ -274,6 +277,8 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
 				MARKETING_VERSION = 1.4;
+				MCSUPABASE_URL = "";
+				MCSUPABASE_PUBLISHABLE_KEY = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompass;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -293,6 +298,7 @@
 				DEVELOPMENT_TEAM = ASUMB3BUP7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Configuration/MaroonCompass-Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maroon Compass";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Maroon Compass uses your location only while open to estimate walking time and show useful places near you.";
@@ -304,6 +310,8 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
 				MARKETING_VERSION = 1.4;
+				MCSUPABASE_URL = "";
+				MCSUPABASE_PUBLISHABLE_KEY = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.guilhermemachado.MaroonCompass;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -401,6 +409,18 @@
 		MC00000000000000000000A3 /* Build configuration list for PBXNativeTarget "MaroonCompassTests" */ = {isa = XCConfigurationList; buildConfigurations = (MC0000000000000000000B05 /* Debug */, MC0000000000000000000B06 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		MC0000000000000000000113 /* Build configuration list for PBXNativeTarget "MaroonCompassWidget" */ = {isa = XCConfigurationList; buildConfigurations = (MC0000000000000000000111 /* Debug */, MC0000000000000000000112 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		MC0000000000000000000201 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {kind = exactVersion; version = 2.55.2; };
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		MC0000000000000000000202 /* Auth */ = {isa = XCSwiftPackageProductDependency; package = MC0000000000000000000201 /* XCRemoteSwiftPackageReference "supabase-swift" */; productName = Auth; };
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = MC0000000000000000000001 /* Project object */;
 }
