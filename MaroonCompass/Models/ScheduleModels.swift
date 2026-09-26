@@ -89,6 +89,16 @@ struct Course: Identifiable, Codable, Hashable, Sendable {
     var courseNumber: String { code.split(separator: " ").dropFirst().first.map(String.init) ?? "" }
 }
 
+enum MeetingKind: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+    case lecture
+    case lab
+    case recitation
+    case other
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+}
+
 struct MeetingPattern: Identifiable, Codable, Hashable, Sendable {
     let id: String
     let courseID: String
@@ -102,6 +112,9 @@ struct MeetingPattern: Identifiable, Codable, Hashable, Sendable {
     let additionalDates: [String]
     let sourceLocationText: String?
     let sourceNotes: String?
+    let meetingKind: MeetingKind
+    let buildingCode: String?
+    let room: String?
 
     init(
         id: String,
@@ -115,7 +128,10 @@ struct MeetingPattern: Identifiable, Codable, Hashable, Sendable {
         excludedDates: [String] = [],
         additionalDates: [String] = [],
         sourceLocationText: String? = nil,
-        sourceNotes: String? = nil
+        sourceNotes: String? = nil,
+        meetingKind: MeetingKind = .lecture,
+        buildingCode: String? = nil,
+        room: String? = nil
     ) {
         self.id = id
         self.courseID = courseID
@@ -129,11 +145,15 @@ struct MeetingPattern: Identifiable, Codable, Hashable, Sendable {
         self.additionalDates = additionalDates
         self.sourceLocationText = sourceLocationText
         self.sourceNotes = sourceNotes
+        self.meetingKind = meetingKind
+        self.buildingCode = buildingCode
+        self.room = room
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, courseID, weekdays, startHour, startMinute, endHour, endMinute, sourceUntilUTC
         case excludedDates, additionalDates, sourceLocationText, sourceNotes
+        case meetingKind, buildingCode, room
     }
 
     init(from decoder: any Decoder) throws {
@@ -150,6 +170,9 @@ struct MeetingPattern: Identifiable, Codable, Hashable, Sendable {
         additionalDates = try container.decodeIfPresent([String].self, forKey: .additionalDates) ?? []
         sourceLocationText = try container.decodeIfPresent(String.self, forKey: .sourceLocationText)
         sourceNotes = try container.decodeIfPresent(String.self, forKey: .sourceNotes)
+        meetingKind = try container.decodeIfPresent(MeetingKind.self, forKey: .meetingKind) ?? .lecture
+        buildingCode = try container.decodeIfPresent(String.self, forKey: .buildingCode)
+        room = try container.decodeIfPresent(String.self, forKey: .room)
     }
 }
 
@@ -211,8 +234,8 @@ struct Term: Codable, Hashable, Sendable {
     let name: String
     let firstClassDate: String
     let lastClassDate: String
-    let finalsStartDate: String
-    let finalsEndDate: String
+    let finalsStartDate: String?
+    let finalsEndDate: String?
     let timeZoneIdentifier: String
 }
 
@@ -398,6 +421,7 @@ struct ResourceContact: Identifiable, Hashable, Sendable {
 struct ImportedScheduleBundle: Codable, Hashable, Sendable {
     let sourceName: String
     let importedAt: Date
+    let term: Term?
     let courses: [Course]
     let patterns: [MeetingPattern]
     let oneTimeEvents: [OneTimeEvent]
@@ -406,6 +430,7 @@ struct ImportedScheduleBundle: Codable, Hashable, Sendable {
     init(
         sourceName: String,
         importedAt: Date,
+        term: Term? = nil,
         courses: [Course],
         patterns: [MeetingPattern],
         oneTimeEvents: [OneTimeEvent],
@@ -413,6 +438,7 @@ struct ImportedScheduleBundle: Codable, Hashable, Sendable {
     ) {
         self.sourceName = sourceName
         self.importedAt = importedAt
+        self.term = term
         self.courses = courses
         self.patterns = patterns
         self.oneTimeEvents = oneTimeEvents

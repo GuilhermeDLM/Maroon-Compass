@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @State private var isImporterPresented = false
+    @State private var isPhotoImportPresented = false
     @State private var importReport: CalendarImportReport?
     @State private var importError: String?
     @State private var isRestoreConfirmationPresented = false
@@ -23,6 +24,9 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Button("Import updated Fall 2026 .ics", systemImage: "square.and.arrow.down") {
                     isImporterPresented = true
+                }
+                Button("Import from a photo or enter classes", systemImage: "photo.on.rectangle.angled") {
+                    isPhotoImportPresented = true
                 }
                 if store.hasImportedSchedule {
                     Button("Restore embedded schedule", systemImage: "arrow.counterclockwise", role: .destructive) {
@@ -134,6 +138,9 @@ struct SettingsView: View {
         }
         .sheet(item: $importReport) { report in
             NavigationStack { CalendarImportReportView(report: report) }
+        }
+        .sheet(isPresented: $isPhotoImportPresented) {
+            NavigationStack { ScheduleImportView() }
         }
         .alert("Calendar import failed", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
             Button("OK", role: .cancel) { importError = nil }
