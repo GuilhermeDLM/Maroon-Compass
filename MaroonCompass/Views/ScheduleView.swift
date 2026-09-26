@@ -60,6 +60,11 @@ struct ScheduleView: View {
             }
             .presentationDetents([.medium])
         }
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("-UIImportSchedule") {
+                isImportPresented = true
+            }
+        }
     }
 
     private var weekStrip: some View {
