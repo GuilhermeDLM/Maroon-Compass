@@ -132,7 +132,7 @@ struct ScheduleImageImportService: Sendable {
                     course.section = section
                     if let end = Range(match.range, in: line.text)?.upperBound {
                         let titleEnd = timeMatch.flatMap { Range($0.range, in: line.text)?.lowerBound } ?? line.text.endIndex
-                        let candidate = String(line.text[end..<titleEnd])
+                        let candidate = String(line.text[end..<titleEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
                         course.title = candidate.replacingOccurrences(
                             of: #"(?i)(?:\s+(?:MON|MONDAY|TUE|TUESDAY|WED|WEDNESDAY|THU|THURSDAY|FRI|FRIDAY|MWF|TR|TTH|LAB|LECTURE|RECITATION))+$"#,
                             with: "", options: .regularExpression
@@ -164,7 +164,7 @@ struct ScheduleImageImportService: Sendable {
                    let buildingRange = Range(location.range(at: 1), in: tail),
                    let roomRange = Range(location.range(at: 2), in: tail) {
                     let building = String(tail[buildingRange])
-                    if !["ROOM", "BLDG", "BUILDING", "CLASS"].contains(building) {
+                    if !["ROOM", "BLDG", "BUILDING", "CLASS", "CRN", "SECTION", "CREDITS", "UNITS"].contains(building) {
                         meeting.buildingCode = building
                         meeting.room = String(tail[roomRange])
                         foundLocation = true

@@ -160,6 +160,16 @@ final class ScheduleDraftTests: XCTestCase {
         XCTAssertFalse(draft.issues.isEmpty)
     }
 
+    func testOCRDoesNotMistakeCRNForBuilding() {
+        let draft = ScheduleImageImportService.draftFromRecognizedLines(
+            ["CHEM 107-504 General Chemistry", "Tue Thu 08:00 - 09:15 CRN 12345"],
+            currentTerm: ScheduleSeed.term
+        )
+        XCTAssertEqual(draft.courses[0].meetings[0].weekdays, [.tuesday, .thursday])
+        XCTAssertTrue(draft.courses[0].meetings[0].buildingCode.isEmpty)
+        XCTAssertTrue(draft.courses[0].meetings[0].room.isEmpty)
+    }
+
     func testOldImportedBundleDecodesWithoutNewTermOrMeetingFields() throws {
         let old = ImportedScheduleBundle(
             sourceName: "Older import",
