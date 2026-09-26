@@ -36,3 +36,34 @@ Work occurred in an isolated copy at `/Users/guilhermemachado/Documents/Codex/20
 3. Test image extraction on the paired iPhone with Apple Intelligence enabled and disabled, plus representative redacted schedule screenshots. Report actual runtime availability; simulator compilation does not establish it.
 4. Add a versioned local history/rollback path before enabling recurring cloud sync, then verify offline retry and two-device conflicts.
 5. The development build is now installed in place. Once the phone is unlocked, verify launch and the import screen, then test Apple Intelligence availability. If it fails, use the verified known-good ZIP for recovery and preserve the preference backup.
+
+## Separate import-quality PR — 2026-09-26
+
+The focused branch `gpt/schedule-import-quality-20260926` was created from PR #2
+head `16249d96b56e876dd518491eb51d1bfd1379f7fa`. Its first pushed code
+checkpoint is `0fa89ee77b72e5dab5adf69e5bc6a803712790c8`, in draft PR #3
+targeting PR #2. The PR head shown by GitHub is authoritative after later
+documentation or fix commits.
+
+This branch changes `ScheduleDraft.swift`, `ScheduleImageImportService.swift`,
+`ScheduleImportView.swift`, the existing QA launch route in `RootView.swift`,
+focused tests, generated synthetic PNG fixtures, and `docs/IMPORT_QA.md`.
+It does not change Settings, Supabase, Auth, sync, signing, or cloud UI. New
+behavior protects an edited draft before another image replaces it, shows
+field errors inline, blocks a room without a building and overlapping or
+duplicate meetings, and keeps adjacent meetings valid. The OCR fallback now
+associates repeated course headers with the correct course and transcribes
+visible building/room text without normalizing ambiguous characters.
+
+The synthetic fixtures and evaluation protocol are described in
+`docs/IMPORT_QA.md`. The first GitHub Xcode 27 workflow run
+<https://github.com/GuilhermeDLM/Maroon-Compass/actions/runs/36221399933>
+compiled the Debug targets but produced no test output after nine minutes;
+it was canceled and the workflow was changed to run simulator tests serially.
+No new test count, simulator UI result, signed build, physical install,
+physical launch, or Apple Intelligence accuracy is claimed from that run.
+The Windows checkout has no Swift/Xcode toolchain. Continue with the serial
+workflow result, fix any failures on this branch, inspect the compiled
+light/dark import screenshots, then have the integrator handle signing and
+device verification. Keep PR #3 draft until those source and simulator gates
+are recorded.

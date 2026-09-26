@@ -22,7 +22,9 @@ jobs:
         run: |
           xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass \
             -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' \
-            -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO test
+            -derivedDataPath DerivedData -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            CODE_SIGNING_ALLOWED=NO test
       - name: Simulator Release build
         run: |
           xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass \
