@@ -51,7 +51,9 @@ struct ScheduleHistoryView: View {
                             .accessibilityHint("Restore this saved schedule after confirmation")
                         }
                     } footer: {
-                        Text("Restoring a version saves your current imported schedule here first. Only confirmed class details are kept; original screenshots are never stored.")
+                        Text(store.hasImportedSchedule
+                             ? "Restoring a version saves your current imported schedule here first. Only confirmed class details are kept; original screenshots are never stored."
+                             : "The original embedded schedule remains available in Settings. Only confirmed class details are kept; original screenshots are never stored.")
                     }
                 }
             }
@@ -69,7 +71,9 @@ struct ScheduleHistoryView: View {
             }
             Button("Keep current schedule", role: .cancel) { selectedVersion = nil }
         } message: {
-            Text("Your current imported schedule will be saved in Previous Schedules before this version is restored.")
+            Text(store.hasImportedSchedule
+                 ? "Your current imported schedule will be saved in Previous Schedules before this version is restored."
+                 : "The original embedded schedule remains available in Settings after this version is restored.")
         }
         .alert("Schedule history unavailable", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK", role: .cancel) { errorMessage = nil }
