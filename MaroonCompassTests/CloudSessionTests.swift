@@ -25,8 +25,8 @@ final class CloudSessionTests: XCTestCase {
 
     func testConfigurationAcceptsOnlyPublishableKeysAndSafeURLs() {
         let https = URL(string: "https://abc.supabase.co")!
-        let anonJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
-        let serviceJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
+        let anonJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJtYXJvb24tdGVzdCIsInJvbGUiOiJhbm9uIn0.dGVzdC1zaWduYXR1cmU"  // synthetic, unsigned
+        let serviceJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJtYXJvb24tdGVzdCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUifQ.dGVzdC1zaWduYXR1cmU"  // synthetic, unsigned
         XCTAssertNotNil(SupabaseConfiguration(projectURL: https, publishableKey: "sb_publishable_abc"))
         XCTAssertNotNil(SupabaseConfiguration(projectURL: https, publishableKey: anonJWT))
         XCTAssertNil(SupabaseConfiguration(projectURL: https, publishableKey: "sb_secret_abc"), "secret keys never ship")
