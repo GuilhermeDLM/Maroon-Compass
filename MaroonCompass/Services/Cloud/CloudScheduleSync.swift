@@ -198,7 +198,7 @@ final class CloudScheduleSync {
     /// last saw, or re-creating a copy that was deleted elsewhere.
     func uploadLocalChanges(for user: AuthUser) async throws -> CloudSyncOverview {
         let snapshot = try localSnapshot()
-        let link = currentLink(for: user)
+        let link = applicableLink(for: user, termStart: snapshot.semester.firstClassDate)
         let target: (semesterID: UUID, expected: Int?)
         if let link {
             let summaries = try await withToken { try await $0.listSemesters(accessToken: $1) }
@@ -297,6 +297,19 @@ final class CloudScheduleSync {
         return link
     }
 
+    /// The link, if it belongs to this account and to the term the device now holds. A device
+    /// that switched to a different term gets that term's own cloud copy; the previous term's
+    /// copy is left untouched and listed with the other semesters.
+    private func applicableLink(for user: AuthUser, termStart: String) -> CloudSyncLink? {
+        guard let link = currentLink(for: user) else { return nil }
+        guard link.syncedSnapshot.semester.firstClassDate == termStart else {
+            store.state.link = nil
+            store.state.pendingUploadUserID = nil
+            return nil
+        }
+        return link
+    }
+
     private func write(
         _ snapshot: CloudScheduleSnapshot,
         to semesterID: UUID,
@@ -348,7 +361,7 @@ final class CloudScheduleSync {
         }
 
         let summaries = try await withToken { try await $0.listSemesters(accessToken: $1) }
-        let link = currentLink(for: user)
+        let link = applicableLink(for: user, termStart: termStart)
         let state: CloudSyncState
 
         if let link {
