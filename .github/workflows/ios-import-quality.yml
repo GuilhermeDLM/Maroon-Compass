@@ -46,6 +46,18 @@ jobs:
           xcrun simctl ui "$SIM_ID" appearance dark
           sleep 2
           xcrun simctl io "$SIM_ID" screenshot import-dark.png
+          for spec in "iPhone 17e|import-small-iphone.png" "iPad mini (A17 Pro)|import-ipad-mini.png"; do
+            MODEL="${spec%%|*}"
+            OUTPUT="${spec#*|}"
+            TARGET_ID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; name=sys.argv[1]; print(next(x["udid"] for group in d.values() for x in group if x["name"] == name and x["isAvailable"]))' "$MODEL")"
+            xcrun simctl boot "$TARGET_ID" || true
+            xcrun simctl bootstatus "$TARGET_ID" -b
+            xcrun simctl install "$TARGET_ID" "$PWD/DerivedData/Build/Products/Debug-iphonesimulator/MaroonCompass.app"
+            xcrun simctl ui "$TARGET_ID" appearance light
+            xcrun simctl launch "$TARGET_ID" com.guilhermemachado.MaroonCompass -hasCompletedOnboarding YES -UIImportSchedule
+            sleep 5
+            xcrun simctl io "$TARGET_ID" screenshot "$OUTPUT"
+          done
       - uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
@@ -53,4 +65,6 @@ jobs:
           path: |
             import-light.png
             import-dark.png
+            import-small-iphone.png
+            import-ipad-mini.png
           retention-days: 7
