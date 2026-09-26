@@ -40,23 +40,51 @@ MC_LIVE_MAILPIT_URL=http://127.0.0.1:54324 \
 Tools/CloudHarness/run.sh                                   # plus 6 live scenarios
 ```
 
-The live tests create and delete users with the admin key, so they refuse any host except localhost unless `MC_LIVE_DISPOSABLE_PROJECT=yes` is also set. Never run them against a project that holds real schedules. The Google-redirect test needs the Auth container to reach `accounts.google.com` (for OpenID discovery); it skips with a message otherwise.
+The live tests create and delete users with the admin key, so they refuse any host except localhost unless `MC_LIVE_DISPOSABLE_PROJECT=yes` is also set. Never run them against a project that holds real schedules. `MC_HARNESS_FILTER` passes a regular expression to `swift test --filter`. The Google-redirect test needs the Auth container to reach `accounts.google.com` (for OpenID discovery); it skips with a message otherwise.
 
 The cloud unit tests are also part of the iOS test target (`MaroonCompassTests/Cloud*.swift`) and run with the normal `xcodebuild … test` command.
 
 ## Disposable hosted development project (user-only step)
 
-A hosted project needs Guilherme's Supabase account. Nothing in this branch has been run against a hosted project.
+A hosted project needs Guilherme's Supabase account. A disposable development project exists: both migrations were applied in the SQL Editor and `delete-account` was deployed (`docs/PROJECT_STATE.md` has what was checked).
 
 1. Create a new project in the Supabase dashboard (a dedicated development project; no real data).
-2. Link and apply: `supabase link --project-ref <ref>` then `supabase db push`.
-3. Run the database tests against it: `supabase test db --linked`.
-4. Deploy the function: `supabase functions deploy delete-account`. Keep JWT verification on (the default, matching `config.toml`). `SUPABASE_URL`, the anon/publishable key, and the service-role/secret key are injected by Supabase into the function environment; do not add them anywhere else.
+2. Link and apply: `supabase link --project-ref <ref>` then `supabase db push`. If the migrations were applied another way (for example pasted into the SQL Editor), see "Migration history" below before any `db push`.
+3. Run the database tests against it: `supabase test db --linked`. They insert two test users and roll everything back.
+4. Deploy the function: `supabase functions deploy delete-account`. `SUPABASE_URL`, the anon/publishable key, and the service-role/secret key are injected by Supabase into the function environment; do not add them anywhere else. `config.toml` keeps gateway JWT verification on, but the function does not depend on it: it rejects a request without a bearer token (`missing_session`) and validates every token with Supabase Auth before deleting anything.
 5. Auth settings for the development project:
    - Google provider and redirect allow list: see below.
    - Anonymous sign-ins: on only if you want Debug development sessions. Keep them off on any project real schedules depend on.
    - Email provider: needed only to run the live harness against this project.
-6. Optionally run the live harness against it with `MC_LIVE_DISPOSABLE_PROJECT=yes`.
+6. Optionally run the live harness against it (below).
+
+### Migration history
+
+The CLI records applied migrations in `supabase_migrations.schema_migrations`. The SQL Editor does not, so a later `supabase db push` would try to apply both files again, and `202609250001` would fail on existing tables. Record them instead of reapplying:
+
+```sh
+supabase link --project-ref <ref>
+supabase migration list --linked         # both versions listed under Local only
+supabase migration repair --status applied 202609250001 202609260001 --linked
+supabase migration list --linked         # both versions now under Local and Remote
+```
+
+Only mark a version applied after confirming that exact file ran successfully. Afterwards `supabase db push` applies only newer migrations.
+
+### Authenticated checks on the hosted project
+
+The live harness signs in as throwaway users, so it covers authenticated sync and account deletion without a Google account. It creates users with the admin key and deletes them, so use only a disposable project. Pass keys as environment variables in your shell, never in a file in the repository:
+
+```sh
+MC_LIVE_SUPABASE_URL=https://<ref>.supabase.co \
+MC_LIVE_PUBLISHABLE_KEY=<publishable key> \
+MC_LIVE_SECRET_KEY=<secret key> \
+MC_LIVE_DISPOSABLE_PROJECT=yes \
+MC_HARNESS_FILTER='CloudLiveIntegrationTests/test(RealServer|ReturningAccount|TokenExpiry|GoogleAuthorize)' \
+Tools/CloudHarness/run.sh
+```
+
+This needs the email provider enabled (test users sign in with a password; `@example.invalid` addresses, pre-confirmed, so no mail is sent). It runs round trips of all three schedule shapes, a second device, conflicts, cross-account isolation, token expiry, sign-out, account deletion through the deployed function, and the Google redirect. The offline and development-session scenario also needs anonymous sign-ins, and the PKCE callback scenario needs the local mail catcher, so the filter leaves them out. The admin key may be a `sb_secret_…` key or a legacy `service_role` key. Turn the email provider (and anonymous sign-ins, if enabled) back off afterwards if the project will be used with the app.
 
 ## App configuration
 
