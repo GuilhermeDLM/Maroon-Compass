@@ -4,6 +4,7 @@ struct ScheduleView: View {
     @Environment(AppStore.self) private var store
     @State private var selectedCourse: Course?
     @State private var isDatePickerPresented = false
+    @State private var isImportPresented = false
 
     var body: some View {
         @Bindable var store = store
@@ -27,6 +28,11 @@ struct ScheduleView: View {
         .navigationTitle("Schedule")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button("Import schedule", systemImage: "square.and.arrow.down") {
+                    isImportPresented = true
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button("Choose date", systemImage: "calendar.badge.clock") {
                     isDatePickerPresented = true
                 }
@@ -35,6 +41,9 @@ struct ScheduleView: View {
         .sheet(item: $selectedCourse) { course in
             NavigationStack { CourseDetailView(course: course) }
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $isImportPresented) {
+            NavigationStack { ScheduleImportView() }
         }
         .sheet(isPresented: $isDatePickerPresented) {
             NavigationStack {
