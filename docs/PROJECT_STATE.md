@@ -35,10 +35,16 @@ The branch `codex/local-schedule-recovery-20260926` extends the schedule-import 
 
 Verification on Xcode 27.0: all 31 iPhone 17 Pro simulator tests passed, including three history and failure-preservation tests; the unsigned Release simulator build succeeded. This branch has not been signed, installed, launched, or tested on the physical iPhone. The earlier signed installation and known-good backup remain the device recovery points. The current Personal Team signature does not carry Sign in with Apple or App Groups entitlements; on-device Foundation Models availability remains unverified.
 
+## Google account branch checkpoint
+
+The user selected Google sign-in instead of Sign in with Apple because the current Personal Team cannot provide the Apple entitlement. The branch `codex/google-auth-20260926` extends local schedule recovery with an optional Supabase Auth Swift 2.55.2 client, Google OAuth through PKCE and the system web-authentication session, Keychain-backed session storage, a registered `marooncompass://auth/callback` URL scheme, and Settings controls for sign-in, sign-out, and cloud-account deletion. It requests only OpenID identity, email, and profile scopes; it does not access Gmail messages or Google Calendar. Local schedule use stays independent, and sign-in does not automatically upload data.
+
+Verification on Xcode 27.0: 33 iPhone 17 Pro simulator tests passed, the unsigned Release simulator build succeeded, and the generated app Info.plist contains the callback URL scheme with empty default Supabase settings. No live Google OAuth flow or Edge Function has been tested because no Supabase project URL, publishable key, or Google OAuth client is configured. This branch has not been installed or launched on the physical iPhone. `docs/GOOGLE_AUTH_HANDOFF.md` lists the required backend configuration. Opus's current `supabase/config.toml` still describes Sign in with Apple; that plan must change to Google before live testing. Database owner policies use `auth.uid()` and can remain provider-independent.
+
 ## Next safe actions
 
 1. Create a disposable Supabase project, apply the migration, and run `supabase/tests/schedule_rls.sql`; fix any policy or RPC failures before enabling client sync.
-2. Configure only project URL and publishable key for local builds. Add Auth session handling, Sign in with Apple under an eligible team, sign-out and account deletion, and explicit restore/conflict UI. Keep local mode independent.
+2. Configure the Google OAuth Web client and Supabase Google provider, allow `marooncompass://auth/callback`, deploy the account-deletion function, then provide only the public project URL and publishable key for a local build. Verify sign-in, refresh, sign-out, and deletion live. Keep local mode independent.
 3. Test image extraction on the paired iPhone with Apple Intelligence enabled and disabled, plus representative redacted schedule screenshots. Report actual runtime availability; simulator compilation does not establish it.
 4. Verify the local history and reminder refresh on the physical iPhone after unlock, then implement and test offline retry and two-device conflicts before recurring cloud sync.
 5. The development build is now installed in place. Once the phone is unlocked, verify launch and the import screen, then test Apple Intelligence availability. If it fails, use the verified known-good ZIP for recovery and preserve the preference backup.
