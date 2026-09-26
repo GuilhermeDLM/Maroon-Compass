@@ -37,13 +37,34 @@ evidence that Vision or Apple Intelligence extracts a real Howdy screen.
 `ScheduleImageEvaluationTests` runs Vision plus the deterministic OCR fallback
 with Apple Intelligence explicitly disabled. It prints `OCR_EVAL` rows with
 correct/expected counts for course code, title, section, weekdays, start/end
-time, building, and room, plus omitted fields and false additions. A field
-counts as correct only when it matches the visible synthetic ground truth;
-time strings compare as parsed civil times. The cropped POLS meeting has no
-weekday ground truth, so its missing meeting fields are excluded from accuracy
-denominators. A blurry-image failure is reported rather than treated as a
-successful extraction. These fixture scores must be copied here after the
-macOS suite runs; none are claimed from source inspection alone.
+time, building, and room, plus omitted fields, mismatched values, and false
+additions. A field counts as correct only when it matches the visible synthetic
+ground truth; time strings compare as parsed civil times. The cropped POLS
+meeting has no weekday ground truth, so its missing meeting fields are excluded
+from accuracy denominators. A blurry-image failure is reported rather than
+treated as a successful extraction.
+
+The Xcode 27 iPhone 18 Pro simulator run at
+<https://github.com/GuilhermeDLM/Maroon-Compass/actions/runs/36222218656>
+passed 36/36 tests. The five synthetic Vision/OCR evaluations reported:
+
+| Field | Correct / expected |
+| --- | ---: |
+| Course code | 9/9 |
+| Title | 8/9 |
+| Section | 9/9 |
+| Weekdays | 10/10 |
+| Start time | 10/10 |
+| End time | 10/10 |
+| Building | 10/10 |
+| Room | 7/10 |
+
+No fixture produced an extra course or meeting. One dark-layout title differed;
+three `1O9` room readings differed from the visible synthetic ground truth.
+These are **field mismatches**, not successful guesses. The review UI displays
+the selected image above editable room and title fields so the student can
+correct them. The fixture set is small and synthetic; these scores do not
+establish reliability on actual Howdy screenshots or Foundation Models output.
 
 ## Privacy and save boundary
 
@@ -56,9 +77,13 @@ is unchanged and does not run without Auth/configuration.
 
 ## Evidence still required
 
-- Full schedule suite and unsigned simulator Release build on Xcode 27.
-- Inspect the compiled empty import sheet in light/dark iPhone screenshots;
-  then exercise editing, keyboard, VoiceOver, Dynamic Type, and iPad layout.
+- The full 36/36 schedule suite and unsigned simulator Release build passed on
+  Xcode 27 in the linked run. The compiled empty import sheet launched on an
+  iPhone 18 Pro simulator; light/dark screenshots were inspected. The blank
+  course error and save footer were visible. A clearer disabled-button label
+  was added after this screenshot and needs the next run's visual check.
+- Exercise actual editing, replacement confirmation, keyboard, VoiceOver,
+  Dynamic Type, and iPad layout on a reachable simulator/device.
 - On a reachable iPhone, test a redacted real schedule image with Apple
   Intelligence available and unavailable. Record model availability and
   field-level results separately from synthetic Vision/OCR metrics.

@@ -88,9 +88,11 @@ final class ScheduleImageEvaluationTests: XCTestCase {
         var total: [String: Int] = [:]
         var correct: [String: Int] = [:]
         var omissions: [String] = []
-        func score(_ field: String, _ matched: Bool, _ context: String) {
+        var mismatches: [String] = []
+        func score(_ field: String, _ matched: Bool, _ context: String, observed: String? = nil) {
             total[field, default: 0] += 1
             if matched { correct[field, default: 0] += 1 }
+            else if let observed, !observed.isEmpty { mismatches.append("\(context).\(field)=\(observed)") }
             else { omissions.append("\(context).\(field)") }
         }
         func normalizedCode(_ code: String) -> String {
@@ -98,18 +100,21 @@ final class ScheduleImageEvaluationTests: XCTestCase {
         }
 
         for expected in fixture.courses {
-            let actual = draft.courses.first { normalizedCode($0.code) == normalizedCode(expected.code) && $0.section == expected.section }
-            score("courseCode", actual != nil, expected.code)
-            score("title", actual?.title.caseInsensitiveCompare(expected.title) == .orderedSame, expected.code)
-            score("section", actual?.section == expected.section, expected.code)
+            let actual = draft.courses.first { normalizedCode($0.code) == normalizedCode(expected.code) }
+            score("courseCode", actual != nil, expected.code, observed: actual?.code)
+            score("title", actual?.title.caseInsensitiveCompare(expected.title) == .orderedSame, expected.code, observed: actual?.title)
+            score("section", actual?.section == expected.section, expected.code, observed: actual?.section)
             for (index, meeting) in expected.meetings.enumerated() {
                 let found = actual?.meetings.indices.contains(index) == true ? actual?.meetings[index] : nil
                 let context = "\(expected.code)#\(index + 1)"
-                score("weekdays", found?.weekdays == meeting.days, context)
-                score("start", found.flatMap { MeetingTime.parse($0.startTime) } == MeetingTime.parse(meeting.start), context)
-                score("end", found.flatMap { MeetingTime.parse($0.endTime) } == MeetingTime.parse(meeting.end), context)
-                score("building", found?.buildingCode == meeting.building, context)
-                score("room", found?.room == meeting.room, context)
+                score("weekdays", found?.weekdays == meeting.days, context,
+                      observed: found.map { $0.weekdays.sorted { $0.sortIndex < $1.sortIndex }.map(\.rawValue).joined(separator: ",") })
+                score("start", found.flatMap { MeetingTime.parse($0.startTime) } == MeetingTime.parse(meeting.start), context,
+                      observed: found?.startTime)
+                score("end", found.flatMap { MeetingTime.parse($0.endTime) } == MeetingTime.parse(meeting.end), context,
+                      observed: found?.endTime)
+                score("building", found?.buildingCode == meeting.building, context, observed: found?.buildingCode)
+                score("room", found?.room == meeting.room, context, observed: found?.room)
             }
         }
         let expectedCodes = Set(fixture.courses.map { normalizedCode($0.code) })
@@ -120,6 +125,6 @@ final class ScheduleImageEvaluationTests: XCTestCase {
             return count + max(0, nonempty - expectedCount)
         }
         let fields = fieldNames.map { "\($0)=\(correct[$0, default: 0])/\(total[$0, default: 0])" }.joined(separator: " ")
-        print("OCR_EVAL \(fixture.file): lines=\(lineCount) \(fields) omitted=[\(omissions.joined(separator: ","))] falseCourses=\(falseCourses) falseMeetings=\(falseMeetings)")
+        print("OCR_EVAL \(fixture.file): lines=\(lineCount) \(fields) omitted=[\(omissions.joined(separator: ","))] mismatched=[\(mismatches.joined(separator: ","))] falseCourses=\(falseCourses) falseMeetings=\(falseMeetings)")
     }
 }

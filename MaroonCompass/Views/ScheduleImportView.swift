@@ -153,10 +153,15 @@ struct ScheduleImportView: View {
             }
 
             Section {
-                Button("Save reviewed schedule", systemImage: "checkmark.circle.fill") {
+                Button(
+                    isAnalyzing ? "Reading image…" :
+                        (issues.isEmpty ? "Save reviewed schedule" : "Fix issues to save"),
+                    systemImage: issues.isEmpty && !isAnalyzing ? "checkmark.circle.fill" : "exclamationmark.circle"
+                ) {
                     isConfirmPresented = true
                 }
                 .disabled(isAnalyzing || !issues.isEmpty)
+                .foregroundStyle(isAnalyzing || !issues.isEmpty ? Color.secondary : AppTheme.accent)
             } footer: {
                 Text(issues.isEmpty
                      ? "Ready to review the replacement. Your schedule stays on this device."
