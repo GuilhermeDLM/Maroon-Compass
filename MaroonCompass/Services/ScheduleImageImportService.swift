@@ -33,20 +33,28 @@ struct ScheduleImageImportService: Sendable {
         let y: Double
     }
 
-    func analyze(_ imageData: Data, currentTerm: Term) async throws -> ScheduleImageImportResult {
+    func analyze(_ imageData: Data, currentTerm: Term, useAppleIntelligence: Bool = true) async throws -> ScheduleImageImportResult {
+        try Task.checkCancellation()
         guard imageData.count <= 20_000_000 else { throw ScheduleImageImportError.imageTooLarge }
         guard UIImage(data: imageData) != nil else { throw ScheduleImageImportError.invalidImage }
 
-        let lines = try await Task.detached(priority: .userInitiated) {
-            try recognizeText(imageData)
-        }.value
+        let recognition = Task.detached(priority: .userInitiated) {
+            try Task.checkCancellation()
+            return try recognizeText(imageData)
+        }
+        let lines = try await withTaskCancellationHandler {
+            try await recognition.value
+        } onCancel: {
+            recognition.cancel()
+        }
+        try Task.checkCancellation()
         guard !lines.isEmpty else { throw ScheduleImageImportError.noText }
         let text = lines.map(\.text).joined(separator: "\n")
 
         var draft: ScheduleDraft?
         var usedIntelligence = false
         #if canImport(FoundationModels)
-        if #available(iOS 26.0, *), SystemLanguageModel.default.isAvailable {
+        if useAppleIntelligence, #available(iOS 26.0, *), SystemLanguageModel.default.isAvailable {
             do {
                 draft = try await interpretWithAppleIntelligence(
                     imageData: imageData,
@@ -64,6 +72,7 @@ struct ScheduleImageImportService: Sendable {
             draft = Self.parseRecognizedText(lines, currentTerm: currentTerm)
             draft?.notes.append("Apple Intelligence was unavailable or could not interpret this image. Review the OCR-based draft carefully.")
         }
+        try Task.checkCancellation()
         return ScheduleImageImportResult(
             draft: draft!,
             recognizedLineCount: lines.count,
@@ -102,39 +111,73 @@ struct ScheduleImageImportService: Sendable {
         )
         let courseExpression = try! NSRegularExpression(pattern: #"^\s*([A-Z]{2,5})\s*[- ]?\s*(\d{3,4})(?:\s*[- ]\s*(\d{3}))?\b"#)
         let timeExpression = try! NSRegularExpression(pattern: #"(?i)(\d{1,2}:\d{2}\s*(?:AM|PM)?)[\s\-–]+(\d{1,2}:\d{2}\s*(?:AM|PM)?)"#)
+        let locationExpression = try! NSRegularExpression(pattern: #"\b([A-Z]{2,6})\s+([A-Z0-9]*\d[A-Z0-9-]{0,5})\b"#)
+        var currentCourseIndex: Int?
+        var foundLocation = false
 
         for line in lines {
             let upper = line.text.uppercased()
             let range = NSRange(upper.startIndex..<upper.endIndex, in: upper)
+            let timeMatch = timeExpression.firstMatch(in: line.text, range: NSRange(line.text.startIndex..<line.text.endIndex, in: line.text))
             if let match = courseExpression.firstMatch(in: upper, range: range),
                let subjectRange = Range(match.range(at: 1), in: upper),
                let numberRange = Range(match.range(at: 2), in: upper) {
                 let code = "\(upper[subjectRange]) \(upper[numberRange])"
                 let section = Range(match.range(at: 3), in: upper).map { String(upper[$0]) } ?? ""
-                if !draft.courses.contains(where: { $0.code == code && $0.section == section }) {
+                if let existing = draft.courses.firstIndex(where: { $0.code == code && $0.section == section }) {
+                    currentCourseIndex = existing
+                } else {
                     var course = ScheduleDraftCourse()
                     course.code = code
                     course.section = section
                     if let end = Range(match.range, in: line.text)?.upperBound {
-                        course.title = String(line.text[end...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        let titleEnd = timeMatch.flatMap { Range($0.range, in: line.text)?.lowerBound } ?? line.text.endIndex
+                        let candidate = String(line.text[end..<titleEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        course.title = candidate.replacingOccurrences(
+                            of: #"(?i)(?:\s+(?:MON|MONDAY|TUE|TUESDAY|WED|WEDNESDAY|THU|THURSDAY|FRI|FRIDAY|MWF|TR|TTH|LAB|LECTURE|RECITATION))+$"#,
+                            with: "", options: .regularExpression
+                        ).trimmingCharacters(in: .whitespacesAndNewlines)
                             .trimmingCharacters(in: CharacterSet(charactersIn: "-–· "))
                     }
                     course.meetings = []
                     draft.courses.append(course)
+                    currentCourseIndex = draft.courses.count - 1
                 }
             }
 
-            guard !draft.courses.isEmpty,
-                  let timeMatch = timeExpression.firstMatch(in: line.text, range: NSRange(line.text.startIndex..<line.text.endIndex, in: line.text)),
+            let days = Self.weekdays(in: upper)
+            guard let currentCourseIndex,
+                  !days.isEmpty,
+                  let timeMatch,
                   let startRange = Range(timeMatch.range(at: 1), in: line.text),
                   let endRange = Range(timeMatch.range(at: 2), in: line.text) else { continue }
             var meeting = ScheduleDraftMeeting()
             meeting.startTime = String(line.text[startRange]).trimmingCharacters(in: .whitespaces)
             meeting.endTime = String(line.text[endRange]).trimmingCharacters(in: .whitespaces)
-            meeting.weekdays = Self.weekdays(in: upper)
+            meeting.weekdays = days
             if upper.contains("LAB") { meeting.kind = .lab }
             else if upper.contains("RECITATION") { meeting.kind = .recitation }
-            draft.courses[draft.courses.count - 1].meetings.append(meeting)
+            if let end = Range(timeMatch.range, in: line.text)?.upperBound {
+                let tail = String(line.text[end...]).uppercased()
+                let tailRange = NSRange(tail.startIndex..<tail.endIndex, in: tail)
+                if let location = locationExpression.firstMatch(in: tail, range: tailRange),
+                   let buildingRange = Range(location.range(at: 1), in: tail),
+                   let roomRange = Range(location.range(at: 2), in: tail) {
+                    let building = String(tail[buildingRange])
+                    if !["ROOM", "BLDG", "BUILDING", "CLASS", "CRN", "SECTION", "CREDITS", "UNITS"].contains(building) {
+                        meeting.buildingCode = building
+                        meeting.room = String(tail[roomRange])
+                        foundLocation = true
+                    }
+                }
+            }
+            if !draft.courses[currentCourseIndex].meetings.contains(where: {
+                $0.weekdays == meeting.weekdays && $0.startTime == meeting.startTime &&
+                $0.endTime == meeting.endTime && $0.kind == meeting.kind &&
+                $0.buildingCode == meeting.buildingCode && $0.room == meeting.room
+            }) {
+                draft.courses[currentCourseIndex].meetings.append(meeting)
+            }
         }
         if draft.courses.isEmpty {
             draft.courses = [ScheduleDraftCourse()]
@@ -142,6 +185,9 @@ struct ScheduleImageImportService: Sendable {
         }
         for index in draft.courses.indices where draft.courses[index].meetings.isEmpty {
             draft.courses[index].meetings = [ScheduleDraftMeeting()]
+        }
+        if foundLocation {
+            draft.notes.append("Building and room text came from OCR. Compare similar-looking letters and numbers with the image.")
         }
         return draft
     }

@@ -1,0 +1,70 @@
+name: iOS import quality
+
+on:
+  push:
+    branches: [gpt/schedule-import-quality-20260926]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulator:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode and simulator
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available
+      - name: Full schedule suite
+        timeout-minutes: 15
+        run: |
+          xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass \
+            -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0' \
+            -derivedDataPath DerivedData -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            CODE_SIGNING_ALLOWED=NO test
+      - name: Simulator Release build
+        if: success() || failure()
+        run: |
+          xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass \
+            -configuration Release -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+      - name: Capture compiled import sheet
+        if: success() || failure()
+        run: |
+          SIM_ID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for group in d.values() for x in group if x["name"] == "iPhone 18 Pro" and x["isAvailable"]))')"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          xcrun simctl install "$SIM_ID" "$PWD/DerivedData/Build/Products/Debug-iphonesimulator/MaroonCompass.app"
+          xcrun simctl ui "$SIM_ID" appearance light
+          xcrun simctl launch "$SIM_ID" com.guilhermemachado.MaroonCompass -hasCompletedOnboarding YES -UIImportSchedule
+          sleep 5
+          xcrun simctl io "$SIM_ID" screenshot import-light.png
+          xcrun simctl ui "$SIM_ID" appearance dark
+          sleep 2
+          xcrun simctl io "$SIM_ID" screenshot import-dark.png
+          for spec in "iPhone 17e|import-small-iphone.png" "iPad mini (A17 Pro)|import-ipad-mini.png"; do
+            MODEL="${spec%%|*}"
+            OUTPUT="${spec#*|}"
+            TARGET_ID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; name=sys.argv[1]; print(next(x["udid"] for group in d.values() for x in group if x["name"] == name and x["isAvailable"]))' "$MODEL")"
+            xcrun simctl boot "$TARGET_ID" || true
+            xcrun simctl bootstatus "$TARGET_ID" -b
+            xcrun simctl install "$TARGET_ID" "$PWD/DerivedData/Build/Products/Debug-iphonesimulator/MaroonCompass.app"
+            xcrun simctl ui "$TARGET_ID" appearance light
+            xcrun simctl launch "$TARGET_ID" com.guilhermemachado.MaroonCompass -hasCompletedOnboarding YES -UIImportSchedule
+            sleep 5
+            xcrun simctl io "$TARGET_ID" screenshot "$OUTPUT"
+          done
+      - uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: synthetic-import-screen
+          path: |
+            import-light.png
+            import-dark.png
+            import-small-iphone.png
+            import-ipad-mini.png
+          retention-days: 7

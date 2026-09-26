@@ -28,7 +28,12 @@ struct RootView: View {
             }
         }
         .task { await store.loadCampus() }
-        .onAppear { store.applyPendingIntentNavigation() }
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("-UIImportSchedule") {
+                store.selectedTab = .schedule
+            }
+            store.applyPendingIntentNavigation()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.applyPendingIntentNavigation() }
         }
