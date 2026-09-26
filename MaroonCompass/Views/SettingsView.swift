@@ -41,6 +41,16 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Cloud account") {
+                NavigationLink {
+                    CloudAccountView()
+                } label: {
+                    Label("Google sign-in and account", systemImage: "person.crop.circle")
+                }
+                Text("The app works locally without an account. Cloud backup is not active until the backend is configured and verified.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Section("Personal Plan") {
                 LabeledContent("Personal blocks", value: "\(store.personalBlocks.count)")
                 Label("Weekly routines and one-time blocks are stored separately from protected class meetings", systemImage: "calendar.badge.plus")
@@ -122,8 +132,8 @@ struct SettingsView: View {
             }
 
             Section("Privacy") {
-                Label("Schedule, personal plan, locations, and favorites stay on this device", systemImage: "lock.shield.fill")
-                Label("No analytics, ads, accounts, or NetID credentials", systemImage: "hand.raised.fill")
+                Label("Your schedule, personal plan, locations, and favorites stay on this device until cloud backup is explicitly enabled", systemImage: "lock.shield.fill")
+                Label("No analytics, ads, or NetID credentials", systemImage: "hand.raised.fill")
                 Label("Commercial places come from Apple Maps", systemImage: "map.fill")
             }
 
