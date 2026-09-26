@@ -1,6 +1,6 @@
 # Project state
 
-Updated: 2026-09-25
+Updated: 2026-09-26
 
 ## Current state
 
@@ -29,10 +29,16 @@ Verification: 29/29 iPhone 17 Pro simulator tests passed after import changes. T
 
 Work occurred in an isolated copy at `/Users/guilhermemachado/Documents/Codex/2026-09-25/also-just-for-future-reference-a/work/maroon-compass-next`. The original Documents source and the renewal mirror were not overwritten by this branch. GitHub is the durable source; terminal Git lacks private-repo credentials, so this branch was updated through the GitHub connector.
 
+## Local schedule recovery branch checkpoint
+
+The branch `codex/local-schedule-recovery-20260926` extends the schedule-import branch with bounded, on-device recovery for confirmed imported schedules. Replacing an imported schedule, restoring an earlier version, or returning to the embedded schedule first saves the displaced imported bundle. Settings exposes the 25 most recent versions. The history is stored in the app's Application Support directory with iOS file protection; screenshots and OCR text are not retained. If history cannot be read or written, the app keeps the current imported schedule rather than replacing it. Personal blocks, favorites, and manual building assignments remain separate. A schedule change refreshes class reminders and clears route-specific leave reminders.
+
+Verification on Xcode 27.0: all 31 iPhone 17 Pro simulator tests passed, including three history and failure-preservation tests; the unsigned Release simulator build succeeded. This branch has not been signed, installed, launched, or tested on the physical iPhone. The earlier signed installation and known-good backup remain the device recovery points. The current Personal Team signature does not carry Sign in with Apple or App Groups entitlements; on-device Foundation Models availability remains unverified.
+
 ## Next safe actions
 
 1. Create a disposable Supabase project, apply the migration, and run `supabase/tests/schedule_rls.sql`; fix any policy or RPC failures before enabling client sync.
 2. Configure only project URL and publishable key for local builds. Add Auth session handling, Sign in with Apple under an eligible team, sign-out and account deletion, and explicit restore/conflict UI. Keep local mode independent.
 3. Test image extraction on the paired iPhone with Apple Intelligence enabled and disabled, plus representative redacted schedule screenshots. Report actual runtime availability; simulator compilation does not establish it.
-4. Add a versioned local history/rollback path before enabling recurring cloud sync, then verify offline retry and two-device conflicts.
+4. Verify the local history and reminder refresh on the physical iPhone after unlock, then implement and test offline retry and two-device conflicts before recurring cloud sync.
 5. The development build is now installed in place. Once the phone is unlocked, verify launch and the import screen, then test Apple Intelligence availability. If it fails, use the verified known-good ZIP for recovery and preserve the preference backup.
