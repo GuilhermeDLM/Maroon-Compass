@@ -17,6 +17,7 @@ This project intentionally targets native iOS and iPadOS, overriding the workspa
 - Complete Howdy course details—including enrollment status, CRN, subject, course number, section, credits, instruction mode, instructor, and every meeting location—are available from each course. Manual building overrides remain available.
 - A private, on-device `.ics` re-import flow in Settings for future Howdy schedule updates; imports support `TZID`, UTC conversion, folded lines, `EXDATE`, `RDATE`, source notes, and location hints. Howdy recurrence anchors are normalized and saved locations remain intact.
 - A screenshot/photo schedule import draft using Vision OCR, Foundation Models when available, validation, manual corrections, and explicit confirmation before local save. The OCR/manual path works when Apple Intelligence is unavailable.
+- On-device history of the 25 most recent confirmed imported schedules. Replacing or restoring a schedule first saves the active imported version, and Settings can restore an earlier version without a cloud account.
 - Per-course Apple Calendar export using write-only access, occurrence expansion, academic exceptions, and duplicate prevention.
 - Home Screen and Lock Screen next-class widgets plus App Shortcuts for What’s Next, Today’s Schedule, and routing to the next confirmed class.
 - Saved buildings, parking, places, class locations, recent searches, and a searchable directory of official academic, transportation, wellness, and emergency resources.
@@ -31,6 +32,7 @@ This project intentionally targets native iOS and iPadOS, overriding the workspa
 - `Services/PersonalPlanEngine.swift`: local personal recurrence expansion, overnight handling, combined agendas, conflict detection, and open-time calculation.
 - `Services/ICSImporter.swift`: defensive calendar parsing and recurrence normalization.
 - `Services/ScheduleImageImportService.swift`: local OCR, structured Apple Intelligence extraction, and a deterministic review fallback.
+- `Services/ScheduleHistoryStore.swift`: bounded, protected on-device history of confirmed imports for recovery.
 - `Models/ScheduleDraft.swift`: editable class/meeting draft and validation before any schedule is replaced.
 - `Services/SupabaseScheduleRepository.swift`: an explicit remote snapshot transport for supported confirmed schedules; it is not active without project configuration and an authenticated session.
 - `Services/CampusGISService.swift`: official building and parking ArcGIS decoding with atomic local caching.
@@ -45,7 +47,7 @@ No third-party iOS dependencies, analytics, advertising, tracking, or NetID acce
 
 ## Data and privacy
 
-Schedule data, personal blocks, confirmed class locations, reminder preferences, export identifiers, recent searches, and favorites remain on device in the current build. Schedule screenshots and OCR text are processed locally and are never sent to the backend. Personal blocks are stored separately from the imported class schedule, so editing or deleting them cannot alter a class meeting. Campus metadata comes from public Texas A&M GIS services and is cached with its fetch date. Commercial place results and routes come from Apple Maps at runtime. Precise user location is not logged or persisted.
+Schedule data, personal blocks, confirmed class locations, reminder preferences, export identifiers, recent searches, and favorites remain on device in the current build. The 25 most recent displaced confirmed imports are kept in the app's Application Support directory so an accidental replacement can be reversed; this history is removed if the app is deleted. Schedule screenshots and OCR text are processed locally and are never sent to the backend. Personal blocks are stored separately from the imported class schedule, so editing or deleting them cannot alter a class meeting. Campus metadata comes from public Texas A&M GIS services and is cached with its fetch date. Commercial place results and routes come from Apple Maps at runtime. Precise user location is not logged or persisted.
 
 The widget deliberately uses the embedded verified Fall 2026 schedule. Imported calendar changes and manual room overrides remain private to the main app because this local build does not request an App Group entitlement.
 
@@ -69,7 +71,7 @@ xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass -destination '
 xcodebuild -project MaroonCompass.xcodeproj -scheme MaroonCompass -configuration Release -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-There are no third-party iOS dependencies or generated dependency state. Automated tests cover class recurrence, exceptions, source normalization, campus civil time, DST, complete Howdy metadata, personal weekly and one-time recurrence, overnight blocks, conflict detection, local persistence, schedule draft validation, and legacy decoding. `DerivedData` and local screenshots are excluded from source control.
+There are no third-party iOS dependencies or generated dependency state. Automated tests cover class recurrence, exceptions, source normalization, campus civil time, DST, complete Howdy metadata, personal weekly and one-time recurrence, overnight blocks, conflict detection, local persistence, schedule draft validation, bounded schedule history and restoration, and legacy decoding. `DerivedData` and local screenshots are excluded from source control.
 
 ## Personal Team renewal
 
