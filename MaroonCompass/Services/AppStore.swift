@@ -71,13 +71,7 @@ final class AppStore {
         recentPlaceSearches = defaults.stringArray(forKey: "recentPlaceSearches") ?? []
         personalBlocks = Self.decode([PersonalBlock].self, from: defaults.data(forKey: "personalBlocks")) ?? []
 
-        if defaults.string(forKey: Self.embeddedScheduleRevisionKey) != ScheduleSeed.revision {
-            defaults.removeObject(forKey: "importedSchedule")
-            let currentCourseIDs = Set(ScheduleSeed.courses.map(\.id))
-            courseLocations = courseLocations.filter { currentCourseIDs.contains($0.key) }
-            defaults.set(try? JSONEncoder().encode(courseLocations), forKey: "courseLocations")
-            defaults.set(ScheduleSeed.revision, forKey: Self.embeddedScheduleRevisionKey)
-        }
+        courseLocations = Self.reconcileEmbeddedScheduleRevision(defaults: defaults, courseLocations: courseLocations)
 
         if let bundle = Self.decode(ImportedScheduleBundle.self, from: defaults.data(forKey: "importedSchedule")) {
             engine = ScheduleEngine(
@@ -533,6 +527,28 @@ final class AppStore {
     private static func decode<T: Decodable>(_ type: T.Type, from data: Data?) -> T? {
         guard let data else { return nil }
         return try? JSONDecoder().decode(type, from: data)
+    }
+
+    static func reconcileEmbeddedScheduleRevision(
+        defaults: UserDefaults,
+        courseLocations: [String: CourseLocation]
+    ) -> [String: CourseLocation] {
+        guard defaults.string(forKey: embeddedScheduleRevisionKey) != ScheduleSeed.revision else {
+            return courseLocations
+        }
+
+        // A new embedded seed must never replace a schedule explicitly imported by the user.
+        // Retain its stored bytes and location assignments for recovery even if decoding fails.
+        guard defaults.data(forKey: "importedSchedule") == nil else {
+            defaults.set(ScheduleSeed.revision, forKey: embeddedScheduleRevisionKey)
+            return courseLocations
+        }
+
+        let embeddedCourseIDs = Set(ScheduleSeed.courses.map(\.id))
+        let retained = courseLocations.filter { embeddedCourseIDs.contains($0.key) }
+        defaults.set(try? JSONEncoder().encode(retained), forKey: "courseLocations")
+        defaults.set(ScheduleSeed.revision, forKey: embeddedScheduleRevisionKey)
+        return retained
     }
 
     private static func argument(named name: String, in arguments: [String]) -> String? {
