@@ -41,6 +41,10 @@ The user selected Google sign-in instead of Sign in with Apple because the curre
 
 Verification on Xcode 27.0: 33 iPhone 17 Pro simulator tests passed, the unsigned Release simulator build succeeded, and the generated app Info.plist contains the callback URL scheme with empty default Supabase settings. No live Google OAuth flow or Edge Function has been tested because no Supabase project URL, publishable key, or Google OAuth client is configured. This branch has not been installed or launched on the physical iPhone. `docs/GOOGLE_AUTH_HANDOFF.md` lists the required backend configuration. Opus's current `supabase/config.toml` still describes Sign in with Apple; that plan must change to Google before live testing. Database owner policies use `auth.uid()` and can remain provider-independent.
 
+## Cross-branch integration QA checkpoint
+
+A disposable checkout combined PR #3 import quality, PR #4 local recovery, PR #5's base, and Opus's `claude/maroon-compass-backend-auth-c1m1yh` cloud source. After reconciling the throwing restore API, keeping the Previous schedules UI, and adapting one obsolete cloud snapshot test, **76 iPhone 17 Pro simulator tests passed** and the unsigned Release simulator build succeeded on Xcode 27.0. See `docs/INTEGRATION_QA_2026-09-26.md` for exact head SHAs, patches, and limits. These results do not establish a merged branch, a live backend, Google login, device launch, or Apple Intelligence runtime availability. Opus's account implementation still requires the user-directed Google OAuth pivot.
+
 ## Next safe actions
 
 1. Create a disposable Supabase project, apply the migration, and run `supabase/tests/schedule_rls.sql`; fix any policy or RPC failures before enabling client sync.
